@@ -57,6 +57,11 @@ public class AgenceAgent extends GuiAgent {
 
         if (args != null && args.length > 0) {
             fromCSV2Catalog((String) args[0]);
+            // Initialize bike zones from CSV files
+            data.BikeZoneInitializer.initializeBikeZones((String) args[0]);
+        } else {
+            // Initialize common bike zones if no CSV provided
+            data.BikeZoneInitializer.initializeCommonBikeZones();
         }
 
         AgentServicesTools.register(this, "travel agency", "seller");

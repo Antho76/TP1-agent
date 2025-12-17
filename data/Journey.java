@@ -64,9 +64,17 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
      */
     String proposedBy;
     /**
-     * nb of remaining places (not used)
+     * nb of remaining places
      */
     private int places = 1;
+    
+    /**
+     * initial capacity for this type of journey
+     */
+    private static final int CAR_CAPACITY = 3;
+    private static final int BIKE_CAPACITY = 20;
+    private static final int BUS_CAPACITY = 50;
+    private static final int TRAM_CAPACITY = 200;
 
     public Journey(final String _start, final String _stop, final String _means, final int _departureDate,
                    final int _duration) {
@@ -76,6 +84,7 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
         departureDate = _departureDate;
         duration = _duration;
         arrivalDate = Journey.addTime(departureDate, duration);
+        initializePlacesBasedOnMeans();
     }
 
     Journey(final String _start, final String _stop, final String _means, final int _departureDate, final int _duration,
@@ -229,9 +238,133 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
     public int getPlaces() {
         return places;
     }
+    
+    /**
+     * Get available places for this journey at a specific time
+     * @param currentTime current time for bike zone management
+     * @return number of available places
+     */
+    public int getAvailablePlaces(int currentTime) {
+        // Special handling for bikes
+        if (means != null && (means.equalsIgnoreCase("BIKE") || means.equalsIgnoreCase("VELO") || means.equalsIgnoreCase("VÉLO"))) {
+            BikeZoneManager bikeManager = BikeZoneManager.getInstance();
+            return bikeManager.getAvailableBikes(start, currentTime);
+        }
+        
+        // Regular handling for other transport types
+        return places;
+    }
 
     public void setPlaces(int places) {
         this.places = places;
+    }
+    
+    /**
+     * Initialize places based on means of transport
+     */
+    private void initializePlacesBasedOnMeans() {
+        if (means == null) {
+            places = 1;
+            return;
+        }
+        
+        switch (means.toUpperCase()) {
+            case "CAR":
+            case "VOITURE":
+                places = CAR_CAPACITY;
+                break;
+            case "BIKE":
+            case "VELO":
+            case "VÉLO":
+                places = BIKE_CAPACITY;
+                break;
+            case "BUS":
+                places = BUS_CAPACITY;
+                break;
+            case "TRAM":
+            case "TRAMWAY":
+                places = TRAM_CAPACITY;
+                break;
+            default:
+                places = 1;
+        }
+    }
+    
+    /**
+     * Book a place on this journey
+     * @param currentTime current time for bike zone management
+     * @return true if booking successful, false if no places available
+     */
+    public boolean bookPlace(int currentTime) {
+        // Special handling for bikes
+        if (means != null && (means.equalsIgnoreCase("BIKE") || means.equalsIgnoreCase("VELO") || means.equalsIgnoreCase("VÉLO"))) {
+            BikeZoneManager bikeManager = BikeZoneManager.getInstance();
+            return bikeManager.bookBike(start, stop, arrivalDate, currentTime);
+        }
+        
+        // Regular handling for other transport types
+        if (places > 0) {
+            places--;
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Book a place on this journey (backward compatibility)
+     * @return true if booking successful, false if no places available
+     */
+    public boolean bookPlace() {
+        return bookPlace(departureDate);
+    }
+    
+    /**
+     * Check if journey has available places
+     * @param currentTime current time for bike zone management
+     * @return true if places available
+     */
+    public boolean hasAvailablePlaces(int currentTime) {
+        // Special handling for bikes
+        if (means != null && (means.equalsIgnoreCase("BIKE") || means.equalsIgnoreCase("VELO") || means.equalsIgnoreCase("VÉLO"))) {
+            BikeZoneManager bikeManager = BikeZoneManager.getInstance();
+            return bikeManager.getAvailableBikes(start, currentTime) > 0;
+        }
+        
+        // Regular handling for other transport types
+        return places > 0;
+    }
+    
+    /**
+     * Check if journey has available places (backward compatibility)
+     * @return true if places available
+     */
+    public boolean hasAvailablePlaces() {
+        return hasAvailablePlaces(departureDate);
+    }
+    
+    /**
+     * Get the initial capacity for this type of transport
+     * @return initial capacity
+     */
+    public int getInitialCapacity() {
+        if (means == null) return 1;
+        
+        switch (means.toUpperCase()) {
+            case "CAR":
+            case "VOITURE":
+                return CAR_CAPACITY;
+            case "BIKE":
+            case "VELO":
+            case "VÉLO":
+                return BIKE_CAPACITY;
+            case "BUS":
+                return BUS_CAPACITY;
+            case "TRAM":
+            case "TRAMWAY":
+                return TRAM_CAPACITY;
+            default:
+                return 1;
+        }
     }
 
     @Override

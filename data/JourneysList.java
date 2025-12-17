@@ -77,14 +77,7 @@ public class JourneysList implements Serializable {
      * @return list of all the direct journeys between start and stop
      */
     ArrayList<Journey> findDirectJourneys(String start, String stop) {
-        ArrayList<Journey> result = null;
-        var list = catalog.get(start.toUpperCase());
-        if (list != null) {
-            result = new ArrayList<>(List.copyOf(list));
-            result.removeIf(v -> !v.stop.equalsIgnoreCase(stop));
-            if (result.isEmpty()) result = null;
-        }
-        return result;
+        return findDirectJourneys(start, stop, 0);
     }
 
     /**
@@ -92,6 +85,7 @@ public class JourneysList implements Serializable {
      *
      * @param start departure
      * @param stop  arrival
+     * @param date minimum departure date
      * @return list of all the direct journeys between start and stop
      */
     ArrayList<Journey> findDirectJourneys(String start, String stop, int date) {
@@ -99,7 +93,9 @@ public class JourneysList implements Serializable {
         var list = catalog.get(start.toUpperCase());
         if (list != null) {
             result = new ArrayList<>(List.copyOf(list));
-            result.removeIf(v -> !v.stop.equalsIgnoreCase(stop) || v.departureDate < date);
+            result.removeIf(v -> !v.stop.equalsIgnoreCase(stop) || 
+                                v.departureDate < date || 
+                                !v.hasAvailablePlaces(Math.max(date, v.departureDate)));
             if (result.isEmpty()) result = null;
         }
         return result;
@@ -138,6 +134,10 @@ public class JourneysList implements Serializable {
         if (list == null) return false;
         for (Journey j : list) {
             if (!via.contains(j.stop.toUpperCase())) {
+            // Check if journey has available places
+            boolean hasPlaces = j.hasAvailablePlaces(Math.max(date, j.departureDate));
+            if (!hasPlaces) continue; // Skip if no places available
+            
             if ((j.departureDate >= date && j.departureDate <= Journey.addTime(date, late))
                     || j.means.equalsIgnoreCase("bike")) // bike can be taken anytime
                 if (j.stop.equalsIgnoreCase(stop)) {//end of the journey

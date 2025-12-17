@@ -107,8 +107,24 @@ public class ContractNetVente extends ContractNetResponder {
     /**get in the catalog the journey corresponding to j and remove one place*/
     private void removeTicket(Journey j) {
         ArrayList<Journey> list = catalog.getJourneysFrom(j.getStart());
-        list.stream().filter(journey -> (journey.getStop().equals(j.getStop()) && journey.getDepartureDate() == j.getDepartureDate()))
-                .forEach(journey -> journey.setPlaces(journey.getPlaces() - 1));
+        if (list != null) {
+            list.stream()
+                .filter(journey -> (journey.getStop().equals(j.getStop()) && 
+                                   journey.getDepartureDate() == j.getDepartureDate() &&
+                                   journey.getMeans().equals(j.getMeans())))
+                .forEach(journey -> {
+                    // Use the new booking system
+                    boolean success = journey.bookPlace(j.getDepartureDate());
+                    if (success) {
+                        window.println("Place reserved for " + journey.getMeans() + " from " + 
+                                     journey.getStart() + " to " + journey.getStop() + 
+                                     ". Remaining places: " + journey.getAvailablePlaces(j.getDepartureDate()));
+                    } else {
+                        window.println("Failed to reserve place for " + journey.getMeans() + " from " + 
+                                     journey.getStart() + " to " + journey.getStop() + " - no places available");
+                    }
+                });
+        }
     }
 
     /**

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE log SYSTEM "logger.dtd">
+<log>
+<record>
+  <date>2025-12-17T13:50:46.454361Z</date>
+  <millis>1765979446454</millis>
+  <nanos>361000</nanos>
+  <sequence>10</sequence>
+  <logger>simu</logger>
+  <level>INFO</level>
+  <class>agents.AgenceAgent</class>
+  <method>takeDown</method>
+  <thread>50</thread>
+  <message>Agent Agence : agentTram@10.8.12.15:1099/JADE quitte la plateforme.</message>
+</record>
+<record>
+  <date>2025-12-17T13:50:52.073177Z</date>
+  <millis>1765979452073</millis>
+  <nanos>177000</nanos>
+  <sequence>11</sequence>
+  <logger>simu</logger>
+  <level>INFO</level>
+  <class>agents.AgenceAgent</class>
+  <method>takeDown</method>
+  <thread>48</thread>
+  <message>Agent Agence : agentBike@10.8.12.15:1099/JADE quitte la plateforme.</message>
+</record>
+<record>
+  <date>2025-12-17T13:50:54.284739Z</date>
+  <millis>1765979454284</millis>
+  <nanos>739000</nanos>
+  <sequence>12</sequence>
+  <logger>simu</logger>
+  <level>INFO</level>
+  <class>agents.AgenceAgent</class>
+  <method>takeDown</method>
+  <thread>46</thread>
+  <message>Agent Agence : agentBus@10.8.12.15:1099/JADE quitte la plateforme.</message>
+</record>
+<record>
+  <date>2025-12-17T13:50:55.687464Z</date>
+  <millis>1765979455687</millis>
+  <nanos>464000</nanos>
+  <sequence>13</sequence>
+  <logger>simu</logger>
+  <level>INFO</level>
+  <class>agents.AgenceAgent</class>
+  <method>takeDown</method>
+  <thread>45</thread>
+  <message>Agent Agence : agentCar@10.8.12.15:1099/JADE quitte la plateforme.</message>
+</record>
+</log>
