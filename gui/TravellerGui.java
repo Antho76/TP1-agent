@@ -2,6 +2,7 @@ package gui;
 
 import jade.gui.GuiEvent;
 import agents.TravellerAgent;
+import data.WeatherManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -24,9 +25,11 @@ public class TravellerGui extends JFrame {
 
     private final TravellerAgent myAgent;
     private final JLabel lblPrice;
+    private JLabel lblWeather;
     private JComboBox<String> jListFrom;
     private JComboBox<String> jListTo;
     private JComboBox<String> jListCriteria;
+    private JComboBox<String> jListCity;
     private JSlider sliderTimeDeparture;
 
     private String departure;
@@ -34,7 +37,7 @@ public class TravellerGui extends JFrame {
     private int time;
 
     public TravellerGui(TravellerAgent a) {
-        this.setBounds(10, 10, 600, 200);
+        this.setBounds(10, 10, 700, 300);
 
         myAgent = a;
         if (a != null)
@@ -47,6 +50,31 @@ public class TravellerGui extends JFrame {
         jTextArea.setRows(5);
         JScrollPane jScrollPane = new JScrollPane(jTextArea);
         getContentPane().add(BorderLayout.CENTER, jScrollPane);
+
+        // Create top panel for weather information
+        JPanel weatherPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        weatherPanel.add(new JLabel("Current city:"));
+        
+        jListCity = new JComboBox<>(new String[]{"Lille", "Paris", "Lyon", "Marseille", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier", "Bordeaux"});
+        jListCity.setSelectedItem("Lille");
+        jListCity.addActionListener(e -> {
+            String selectedCity = (String) jListCity.getSelectedItem();
+            WeatherManager.getInstance().setCurrentCity(selectedCity);
+            updateWeatherInfo();
+        });
+        weatherPanel.add(jListCity);
+        
+        JButton refreshWeatherBtn = new JButton("🌤️ Refresh Weather");
+        refreshWeatherBtn.addActionListener(e -> {
+            WeatherManager.getInstance().refreshWeatherData();
+            updateWeatherInfo();
+        });
+        weatherPanel.add(refreshWeatherBtn);
+        
+        lblWeather = new JLabel("Weather: Loading...");
+        weatherPanel.add(lblWeather);
+        
+        getContentPane().add(weatherPanel, BorderLayout.NORTH);
 
         JPanel p = new JPanel();
         p.setLayout(new GridLayout(0, 4, 0, 0));
@@ -128,6 +156,21 @@ public class TravellerGui extends JFrame {
             }
         });
         setResizable(true);
+        
+        // Initialize weather info
+        updateWeatherInfo();
+    }
+
+    /**
+     * Update weather information display
+     */
+    private void updateWeatherInfo() {
+        SwingUtilities.invokeLater(() -> {
+            WeatherManager weatherManager = WeatherManager.getInstance();
+            String weatherInfo = weatherManager.getWeatherImpactDescription();
+            lblWeather.setText("<html>" + weatherInfo.replace("\n", "<br>") + "</html>");
+            lblWeather.repaint();
+        });
     }
 
 

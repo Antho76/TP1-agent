@@ -95,7 +95,8 @@ public class JourneysList implements Serializable {
             result = new ArrayList<>(List.copyOf(list));
             result.removeIf(v -> !v.stop.equalsIgnoreCase(stop) || 
                                 v.departureDate < date || 
-                                !v.hasAvailablePlaces(Math.max(date, v.departureDate)));
+                                !v.hasAvailablePlaces(Math.max(date, v.departureDate)) ||
+                                !v.isAvailableWithWeather()); // Filter based on weather
             if (result.isEmpty()) result = null;
         }
         return result;
@@ -134,9 +135,10 @@ public class JourneysList implements Serializable {
         if (list == null) return false;
         for (Journey j : list) {
             if (!via.contains(j.stop.toUpperCase())) {
-            // Check if journey has available places
+            // Check if journey has available places and is available with weather
             boolean hasPlaces = j.hasAvailablePlaces(Math.max(date, j.departureDate));
-            if (!hasPlaces) continue; // Skip if no places available
+            boolean availableWithWeather = j.isAvailableWithWeather();
+            if (!hasPlaces || !availableWithWeather) continue; // Skip if no places available or weather forbids
             
             if ((j.departureDate >= date && j.departureDate <= Journey.addTime(date, late))
                     || j.means.equalsIgnoreCase("bike")) // bike can be taken anytime
@@ -184,6 +186,17 @@ public class JourneysList implements Serializable {
      */
     public ArrayList<Journey> getJourneysFrom(String from) {
         return catalog.get(from);
+    }
+    
+    /**
+     * Refresh weather adjustments for all journeys in the catalog
+     */
+    public void refreshWeatherAdjustments() {
+        if (catalog != null) {
+            catalog.values().forEach(journeyList -> 
+                journeyList.forEach(Journey::refreshWeatherAdjustments)
+            );
+        }
     }
 
     /**

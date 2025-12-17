@@ -36,7 +36,11 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
      */
     String means;
     /**
-     * duration of the journey, in minutes
+     * duration of the journey, in minutes (base duration, before weather adjustments)
+     */
+    int baseDuration;
+    /**
+     * duration of the journey, in minutes (adjusted for weather)
      */
     int duration;
     /**
@@ -48,7 +52,11 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
      */
     int arrivalDate;
     /**
-     * cost in money
+     * cost in money (base cost, before weather adjustments)
+     */
+    double baseCost;
+    /**
+     * cost in money (adjusted for weather)
      */
     double cost;
     /**
@@ -82,15 +90,19 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
         stop = _stop;
         means = _means;
         departureDate = _departureDate;
+        baseDuration = _duration;
         duration = _duration;
         arrivalDate = Journey.addTime(departureDate, duration);
         initializePlacesBasedOnMeans();
+        applyWeatherAdjustments();
     }
 
     Journey(final String _start, final String _stop, final String _means, final int _departureDate, final int _duration,
             final double _cost) {
         this(_start, _stop, _means, _departureDate, _duration);
+        baseCost = _cost;
         cost = _cost;
+        applyWeatherAdjustments();
     }
 
     public Journey(final String _start, final String _stop, final String _means, final int _departureDate,
@@ -107,8 +119,12 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
     }
 
     public Journey(final Journey j){
-        this(j.start, j.stop, j.means, j.departureDate, j.duration, j.cost, j.co2, j.confort, j.proposedBy);
+        this(j.start, j.stop, j.means, j.departureDate, j.baseDuration, j.baseCost, j.co2, j.confort, j.proposedBy);
         this.places = j.places;
+        this.baseCost = j.baseCost;
+        this.baseDuration = j.baseDuration;
+        this.cost = j.cost;
+        this.duration = j.duration;
     }
 
     /**
@@ -365,6 +381,93 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
             default:
                 return 1;
         }
+    }
+    
+    /**
+     * Apply weather adjustments to duration and cost
+     */
+    private void applyWeatherAdjustments() {
+        WeatherManager weatherManager = WeatherManager.getInstance();
+        
+        // Apply duration adjustment
+        double durationFactor = weatherManager.getDurationAdjustmentFactor(means);
+        duration = (int) Math.round(baseDuration * durationFactor);
+        
+        // Apply cost adjustment
+        if (baseCost > 0) {
+            double costFactor = weatherManager.getCostAdjustmentFactor(means);
+            cost = baseCost * costFactor;
+        }
+        
+        // Recalculate arrival date with adjusted duration
+        arrivalDate = Journey.addTime(departureDate, duration);
+    }
+    
+    /**
+     * Refresh weather adjustments (call when weather changes)
+     */
+    public void refreshWeatherAdjustments() {
+        applyWeatherAdjustments();
+    }
+    
+    /**
+     * Check if this journey is available according to weather conditions
+     * @return true if journey is available despite weather
+     */
+    public boolean isAvailableWithWeather() {
+        WeatherManager weatherManager = WeatherManager.getInstance();
+        
+        // Check if bike journeys are allowed
+        if (means != null && (means.equalsIgnoreCase("BIKE") || 
+                             means.equalsIgnoreCase("VELO") || 
+                             means.equalsIgnoreCase("VÉLO"))) {
+            return weatherManager.areBikeJourneysAllowed();
+        }
+        
+        // Other transport types are always available
+        return true;
+    }
+    
+    /**
+     * Get base duration (before weather adjustments)
+     */
+    public int getBaseDuration() {
+        return baseDuration;
+    }
+    
+    /**
+     * Get base cost (before weather adjustments)  
+     */
+    public double getBaseCost() {
+        return baseCost;
+    }
+    
+    /**
+     * Get weather impact description for this journey
+     */
+    public String getWeatherImpactDescription() {
+        WeatherManager weatherManager = WeatherManager.getInstance();
+        double durationFactor = weatherManager.getDurationAdjustmentFactor(means);
+        double costFactor = weatherManager.getCostAdjustmentFactor(means);
+        
+        StringBuilder impact = new StringBuilder();
+        
+        if (durationFactor > 1.0) {
+            impact.append("Durée +").append(Math.round((durationFactor - 1.0) * 100)).append("% ");
+        }
+        
+        if (costFactor > 1.0) {
+            if (impact.length() > 0) impact.append(", ");
+            impact.append("Coût +").append(Math.round((costFactor - 1.0) * 100)).append("% ");
+        }
+        
+        if (impact.length() == 0) {
+            impact.append("Aucun impact météo");
+        } else {
+            impact.append("(météo)");
+        }
+        
+        return impact.toString();
     }
 
     @Override

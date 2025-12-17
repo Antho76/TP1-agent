@@ -111,6 +111,13 @@ public class AgenceAgent extends GuiAgent {
             doDelete();
         }
     }
+    
+    /**
+     * Get the journey catalog
+     */
+    public JourneysList getCatalog() {
+        return catalog;
+    }
 
     /**
      * initialize the catalog from a cvs file<br>

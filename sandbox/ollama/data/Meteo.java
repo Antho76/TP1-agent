@@ -22,8 +22,8 @@ import java.util.logging.Logger;
  */
 public class Meteo {
 
-    private static final String API_KEY = "12345678912346579123";// Remplacez par votre clé API
-    private static final String BASE_URL = "http://api.openweathermap.org/data/2.5/weather";
+    private static final String API_KEY = data.WeatherConfig.getInstance().getApiKey();
+    private static final String BASE_URL = data.WeatherConfig.getInstance().getApiUrl();
     private static final Logger logger = Logger.getLogger(Meteo.class.getName());
 
     /**
@@ -158,7 +158,15 @@ public class Meteo {
                 return response.toString();
 
             } else if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                // Log more details about the API key issue
+                String apiKey = data.WeatherConfig.getInstance().getApiKey();
                 logger.severe("Clé API invalide ou manquante");
+                logger.severe("Clé utilisée: " + (apiKey.length() > 8 ? apiKey.substring(0, 8) + "..." : apiKey));
+                logger.severe("Longueur clé: " + apiKey.length() + " caractères");
+                if (apiKey.contains("\"")) {
+                    logger.severe("ATTENTION: La clé contient des guillemets - supprimez-les du fichier weather.properties");
+                }
+                logger.severe("Vérifiez votre clé sur https://openweathermap.org/api_keys");
                 return null;
             } else if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
                 logger.warning("Ville non trouvée (HTTP 404)");

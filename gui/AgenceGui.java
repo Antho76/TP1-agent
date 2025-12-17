@@ -1,6 +1,7 @@
 package gui;
 
 import agents.AgenceAgent;
+import data.WeatherManager;
 import jade.gui.GuiEvent;
 
 import javax.swing.*;
@@ -22,6 +23,11 @@ public class AgenceGui extends JFrame {
      * Text area
      */
     private final JTextArea jTextArea;
+    
+    /**
+     * Weather info label
+     */
+    private JLabel lblWeather;
 
     private final AgenceAgent myAgent;
 
@@ -38,6 +44,27 @@ public class AgenceGui extends JFrame {
         jTextArea.setRows(5);
         JScrollPane jScrollPane = new JScrollPane(jTextArea);
         getContentPane().add(BorderLayout.CENTER, jScrollPane);
+        
+        // Add weather information panel
+        JPanel weatherPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        weatherPanel.add(new JLabel("Weather Impact:"));
+        
+        lblWeather = new JLabel("Loading weather info...");
+        weatherPanel.add(lblWeather);
+        
+        JButton refreshWeatherBtn = new JButton("🌤️ Refresh Weather");
+        refreshWeatherBtn.addActionListener(e -> {
+            WeatherManager.getInstance().refreshWeatherData();
+            updateWeatherInfo();
+            // Also refresh journey adjustments
+            if (myAgent.getCatalog() != null) {
+                myAgent.getCatalog().refreshWeatherAdjustments();
+            }
+            println("Weather data refreshed - journey adjustments updated");
+        });
+        weatherPanel.add(refreshWeatherBtn);
+        
+        getContentPane().add(weatherPanel, BorderLayout.NORTH);
 
         // Make the agent terminate when the user closes
         // the GUI using the button on the upper right corner
@@ -52,6 +79,20 @@ public class AgenceGui extends JFrame {
         });
 
         setResizable(true);
+        
+        // Initialize weather display
+        updateWeatherInfo();
+    }
+
+    /**
+     * Update weather information display
+     */
+    private void updateWeatherInfo() {
+        SwingUtilities.invokeLater(() -> {
+            WeatherManager weatherManager = WeatherManager.getInstance();
+            String weatherInfo = weatherManager.getWeatherImpactDescription();
+            lblWeather.setText("<html>" + weatherInfo.replace("\n", "<br>") + "</html>");
+        });
     }
 
     public void display() {
