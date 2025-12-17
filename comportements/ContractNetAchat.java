@@ -9,6 +9,7 @@ import jade.proto.ContractNetInitiator;
 import agents.TravellerAgent;
 import data.Journey;
 import data.JourneysList;
+import data.TextEnhancementService;
 import gui.TravellerGui;
 
 import java.io.IOException;
@@ -39,6 +40,11 @@ public class ContractNetAchat extends ContractNetInitiator {
     private final TravellerAgent monAgent;
 
     /**
+     * text enhancement service
+     */
+    private final TextEnhancementService textEnhancer;
+
+    /**
      * initialisation
      *
      * @param agent       agent initiator
@@ -56,6 +62,7 @@ public class ContractNetAchat extends ContractNetInitiator {
         preference = _preference;
         monAgent = (TravellerAgent) agent;
         window = monAgent.getWindow();
+        textEnhancer = TextEnhancementService.getInstance();
         // définition du prococole
         msg.setProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET);
         // Réponse plus tard dans 1 sec
@@ -84,11 +91,17 @@ public class ContractNetAchat extends ContractNetInitiator {
      */
     @Override
     protected void handleFailure(ACLMessage failure) {
+        String errorMsg;
         if (failure.getSender().equals(myAgent.getAMS())) {
             // ERREUR : le destinataire n'existe pas
-            window.println("Le destinataire n'existe pas...");
-        } else
-            window.println("Agent " + failure.getSender().getLocalName() + " a echoue");
+            errorMsg = "Le destinataire n'existe pas...";
+        } else {
+            errorMsg = "Agent " + failure.getSender().getLocalName() + " a echoue";
+        }
+        
+        // Enhance error message
+        String enhancedError = textEnhancer.enhanceMessage(errorMsg, TextEnhancementService.MessageType.ERROR_MESSAGE);
+        window.println(enhancedError);
     }
 
     /**
@@ -159,6 +172,10 @@ public class ContractNetAchat extends ContractNetInitiator {
      */
     @Override
     protected void handleInform(ACLMessage inform) {
-        window.println("Agent " + inform.getSender().getLocalName() + " : " + inform.getContent());
+        String confirmationMsg = "Agent " + inform.getSender().getLocalName() + " : " + inform.getContent();
+        
+        // Enhance booking confirmation message
+        String enhancedConfirmation = textEnhancer.enhanceMessage(confirmationMsg, TextEnhancementService.MessageType.BOOKING_CONFIRMATION);
+        window.println(enhancedConfirmation);
     }
 }

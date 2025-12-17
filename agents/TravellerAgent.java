@@ -12,6 +12,8 @@ import jade.lang.acl.MessageTemplate;
 import comportements.ContractNetAchat;
 import data.ComposedJourney;
 import data.JourneysList;
+import data.TextEnhancementService;
+import data.WeatherManager;
 import gui.TravellerGui;
 
 import java.awt.*;
@@ -67,13 +69,27 @@ public class TravellerAgent extends GuiAgent {
     private TravellerGui window;
 
     /**
+     * Text enhancement service for improving communication
+     */
+    private TextEnhancementService textEnhancer;
+
+    /**
      * Initialisation de l'agent
      */
     @Override
     protected void setup() {
         this.window = new TravellerGui(this);
         window.setColor(Color.cyan);
-        window.println("Hello! AgentAcheteurCN " + this.getLocalName() + " est pret. ");
+        
+        // Initialize text enhancement service
+        textEnhancer = TextEnhancementService.getInstance();
+        
+        // Enhanced welcome message
+        String welcomeMsg = "Hello! AgentAcheteurCN " + this.getLocalName() + " est pret.";
+        String enhancedWelcome = textEnhancer.enhanceMessage(welcomeMsg, TextEnhancementService.MessageType.GENERAL);
+        window.println(enhancedWelcome);
+        window.println(textEnhancer.getServiceStatus());
+        
         window.setVisible(true);
 
         vendeurs = new ArrayList<>();
@@ -129,7 +145,7 @@ public class TravellerAgent extends GuiAgent {
                 new ArrayList<>(), journeys);
 
         if (!result) {
-            println("no journey found !!!");
+            printlnEnhanced("no journey found !!!", TextEnhancementService.MessageType.ERROR_MESSAGE);
         }
         if (result) {
             //oter les voyages demarrant trop tard
@@ -149,7 +165,12 @@ public class TravellerAgent extends GuiAgent {
                 default -> journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
             }
             myJourney = journeys.getFirst();
-            println("I choose this journey : " + myJourney);
+            
+            // Enhanced journey selection with weather context
+            WeatherManager.WeatherCondition weatherCondition = WeatherManager.getInstance().analyzeWeatherConditions();
+            String journeyMsg = "I choose this journey : " + myJourney;
+            String enhancedJourneyMsg = textEnhancer.enhanceTravelProposal(journeyMsg, weatherCondition);
+            println(enhancedJourneyMsg);
         }
     }
 
@@ -202,6 +223,22 @@ public class TravellerAgent extends GuiAgent {
      */
     public void println(final String msg) {
         window.println(msg);
+    }
+
+    /**
+     * print an enhanced message using text enhancement service
+     *
+     * @param msg         text to enhance and display
+     * @param messageType type of message for appropriate enhancement
+     */
+    public void printlnEnhanced(final String msg, TextEnhancementService.MessageType messageType) {
+        String enhancedMsg = textEnhancer.enhanceMessage(msg, messageType);
+        window.println(enhancedMsg);
+        
+        // Show original in small text if different
+        if (!enhancedMsg.equals(msg) && textEnhancer.isAvailable()) {
+            window.println("  [Original: " + msg + "]");
+        }
     }
 
     /**
