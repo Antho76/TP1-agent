@@ -28,6 +28,7 @@ public class ContractNetAchat extends ContractNetInitiator {
     private final String to;
     private final int departure;
     private final String preference;
+    private final String transportType;
 
     /**
      * agent gui
@@ -53,13 +54,16 @@ public class ContractNetAchat extends ContractNetInitiator {
      * @param _to         destination city
      * @param _departure  date of departure
      * @param _preference criteria (cost, duration, ...)
+     * @param _transportType preferred transport type
      */
-    public ContractNetAchat(Agent agent, ACLMessage msg, final String _from, final String _to, final int _departure, final String _preference) {
+    public ContractNetAchat(Agent agent, ACLMessage msg, final String _from, final String _to, final int _departure, 
+                           final String _preference, final String _transportType) {
         super(agent, msg);
         from = _from;
         to = _to;
         departure = _departure;
         preference = _preference;
+        transportType = _transportType != null ? _transportType : "any";
         monAgent = (TravellerAgent) agent;
         window = monAgent.getWindow();
         textEnhancer = TextEnhancementService.getInstance();
@@ -71,6 +75,13 @@ public class ContractNetAchat extends ContractNetInitiator {
         vendeurs.forEach(msg::addReceiver);
         // relancer le comportement pour fixer la date de remise au plus tard, les destinataires, ...
         this.reset(msg);
+    }
+
+    /**
+     * Backward compatibility constructor (without transport type)
+     */
+    public ContractNetAchat(Agent agent, ACLMessage msg, final String _from, final String _to, final int _departure, final String _preference) {
+        this(agent, msg, _from, _to, _departure, _preference, "any");
     }
 
 
@@ -143,7 +154,7 @@ public class ContractNetAchat extends ContractNetInitiator {
         monAgent.println("j'ai bien recu les calalogues : ");
         monAgent.println(catalogs.toString());
         monAgent.println("je fais mon choix...");
-        monAgent.computeComposedJourney(from, to, departure, preference);
+        monAgent.computeComposedJourney(from, to, departure, preference, transportType);
         //map <name to the agent (agence), list of journeys to buy to it>
         Map<String, ArrayList<Journey>> voyagesAAcheter = new HashMap<>();
         var journey = monAgent.getMyJourney();

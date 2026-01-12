@@ -139,6 +139,19 @@ public class TravellerAgent extends GuiAgent {
      * */
     public void computeComposedJourney(final String from, final String to, final int departure,
                                        final String preference) {
+        computeComposedJourney(from, to, departure, preference, "any");
+    }
+
+    /**
+     * compute a composed journey from a departure to an arrival point with transport type filter
+     * @param from       departure point
+     * @param to         arrival point
+     * @param departure  desired departure time (in hhmm)
+     * @param preference preference for the choice of the journey (cost, confort, duration, duration-cost)
+     * @param transportType preferred transport type (bus, car, bike, tram, any)
+     * */
+    public void computeComposedJourney(final String from, final String to, final int departure,
+                                       final String preference, final String transportType) {
         final List<ComposedJourney> journeys = new ArrayList<>();
 
         final boolean result = catalogs.findIndirectJourney(from, to, departure, 60, new ArrayList<>(),
@@ -146,32 +159,53 @@ public class TravellerAgent extends GuiAgent {
 
         if (!result) {
             printlnEnhanced("no journey found !!!", TextEnhancementService.MessageType.ERROR_MESSAGE);
+            return;
         }
-        if (result) {
-            //oter les voyages demarrant trop tard
-            journeys.removeIf(j -> j.getJourneys().getFirst().getDepartureDate() - departure > delay);
-            switch (preference) {
-                case "duration" -> {
-                    journeys.sort(Comparator.comparingDouble(ComposedJourney::getDuration));
-                }
-                case "confort" -> journeys.sort(Comparator.comparingInt(ComposedJourney::getConfort).reversed());
-                case "cost" -> journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
-                case "duration-cost" ->
-                //        journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
-                journeys.sort((j1, j2) -> {
-                    var difDuration = j1.getDuration() - j2.getDuration() / Math.max(j2.getDuration(),j1.getDuration());
-                    var difCost = j1.getCost() - j2.getCost() / Math.max(j2.getCost(),j1.getCost());
-                    return (int)(10*(difDuration + difCost));});
-                default -> journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
-            }
-            myJourney = journeys.getFirst();
+        
+        // Filter by transport type if specified
+        if (transportType != null && !transportType.equals("any")) {
+            journeys.removeIf(journey -> 
+                journey.getJourneys().stream()
+                    .anyMatch(j -> !j.getMeans().toLowerCase().contains(transportType.toLowerCase()))
+            );
             
-            // Enhanced journey selection with weather context
-            WeatherManager.WeatherCondition weatherCondition = WeatherManager.getInstance().analyzeWeatherConditions();
-            String journeyMsg = "I choose this journey : " + myJourney;
-            String enhancedJourneyMsg = textEnhancer.enhanceTravelProposal(journeyMsg, weatherCondition);
-            println(enhancedJourneyMsg);
+            if (journeys.isEmpty()) {
+                printlnEnhanced("No journey found with transport type: " + transportType, 
+                                TextEnhancementService.MessageType.ERROR_MESSAGE);
+                return;
+            }
         }
+        
+        //oter les voyages demarrant trop tard
+        journeys.removeIf(j -> j.getJourneys().getFirst().getDepartureDate() - departure > delay);
+        
+        if (journeys.isEmpty()) {
+            printlnEnhanced("No journey found within time constraints!", 
+                            TextEnhancementService.MessageType.ERROR_MESSAGE);
+            return;
+        }
+        
+        switch (preference) {
+            case "duration" -> {
+                journeys.sort(Comparator.comparingDouble(ComposedJourney::getDuration));
+            }
+            case "confort" -> journeys.sort(Comparator.comparingInt(ComposedJourney::getConfort).reversed());
+            case "cost" -> journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
+            case "duration-cost" ->
+            //        journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
+            journeys.sort((j1, j2) -> {
+                var difDuration = j1.getDuration() - j2.getDuration() / Math.max(j2.getDuration(),j1.getDuration());
+                var difCost = j1.getCost() - j2.getCost() / Math.max(j2.getCost(),j1.getCost());
+                return (int)(10*(difDuration + difCost));});
+            default -> journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
+        }
+        myJourney = journeys.getFirst();
+        
+        // Enhanced journey selection with weather context
+        WeatherManager.WeatherCondition weatherCondition = WeatherManager.getInstance().analyzeWeatherConditions();
+        String journeyMsg = "I choose this journey : " + myJourney;
+        String enhancedJourneyMsg = textEnhancer.enhanceTravelProposal(journeyMsg, weatherCondition);
+        println(enhancedJourneyMsg);
     }
 
     /**
@@ -183,9 +217,29 @@ public class TravellerAgent extends GuiAgent {
             doDelete();
         }
         if (eventFromGui.getType() == TravellerAgent.BUY_TRAVEL) {
+            // Handle both old (4 params) and new (5 params) format for backward compatibility
+            String departure = (String) eventFromGui.getParameter(0);
+            String arrival = (String) eventFromGui.getParameter(1);
+            Integer time = (Integer) eventFromGui.getParameter(2);
+            String criteria = (String) eventFromGui.getParameter(3);
+            String transportType = "any"; // default value
+            
+            // Check if transport type parameter is provided
+            try {
+                transportType = (String) eventFromGui.getParameter(4);
+            } catch (IndexOutOfBoundsException e) {
+                // Transport type not provided, use default
+                transportType = "any";
+            }
+            
+            // Log the travel request with transport type
+            String enhancedMsg = String.format("Travel request - From: %s, To: %s, Time: %d, Criteria: %s, Transport: %s", 
+                    departure, arrival, time, criteria, transportType);
+            String processedMsg = textEnhancer.enhanceMessage(enhancedMsg, TextEnhancementService.MessageType.GENERAL);
+            window.println(processedMsg);
+            
             addBehaviour(new ContractNetAchat(this, new ACLMessage(ACLMessage.CFP),
-                    (String) eventFromGui.getParameter(0), (String) eventFromGui.getParameter(1),
-                    (Integer) eventFromGui.getParameter(2), (String) eventFromGui.getParameter(3)));
+                    departure, arrival, time, criteria, transportType));
         }
     }
 
