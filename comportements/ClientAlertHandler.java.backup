@@ -1,0 +1,672 @@
+package comportements;
+
+import jade.core.Agent;
+import jade.core.behaviours.OneShotBehaviour;
+import jade.lang.acl.ACLMessage;
+import agents.TravellerAgent;
+import data.ComposedJourney;
+import data.Journey;
+
+import javax.swing.*;
+import java.util.List;
+
+/**
+ * Comportement de gestion des alertes pour le client
+ * Vérifie si les            //         
+              //                         /        /        // ÉTAPE 1 : Notification d'incident
+        showIncidentNotification(reason, () -> {
+            // ÉTAPE 2 : Annonce d'annulation du trajet
+            showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                    originalTime, reason, () -> {
+                // ÉTAPE 3 : Proposition de recherche d'alternative
+                showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                        originalCriteria, originalTransportType);
+            });
+        });
+    }cation d'incident
+        showIncidentNotification(reason, () -> {
+            // ÉTAPE 2 : Annonce d'annulation du trajet
+            showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                    originalTime, reason, () -> {
+                // ÉTAPE 3 : Proposition de recherche d'alternative
+                showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                        originalCriteria, originalTransportType);
+            });
+        });ication d'incident
+        showIncidentNotification(reason, () -> {
+            // ÉTAPE 2 : Annonce d'annulation du trajet
+            showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                    originalTime, reason, () -> {
+                // ÉTAPE 3 : Proposition de recherche d'alternative
+                showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                        originalCriteria, originalTransportType);
+            });
+        });ransportType()='" + originalTransportType + "'");
+        
+        // Processus étape par étape avec des pop-ups séquentiels
+        SwingUtilities.invokeLater(() -> {
+            // ÉTAPE 1 : Notification d'incident
+            showIncidentNotification(reason, () -> {
+                // ÉTAPE 2 : Annonce d'annulation du trajet
+                showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                        originalTime, reason, () -> {
+                    // ÉTAPE 3 : Proposition de recherche d'alternative
+                    showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                            originalCriteria, originalTransportType);
+                });
+            });
+        });
+    } étape avec des pop-ups séquentiels
+        SwingUtilities.invokeLater(() -> {
+            // ÉTAPE 1 : Notification d'incident
+            showIncidentNotification(reason, () -> {
+                // ÉTAPE 2 : Annonce d'annulation du trajet
+                showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                        originalTime, reason, () -> {
+                    // ÉTAPE 3 : Proposition de recherche d'alternative
+                    showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                            originalCriteria, originalTransportType);
+                });
+            });
+        });ape par étape avec des pop-ups séquentiels
+        SwingUtilities.invokeLater(() -> {
+            // ÉTAPE 1 : Notification d'incident
+            showIncidentNotification(reason, () -> {
+                // ÉTAPE 2 : Annonce d'annulation du trajet
+                showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                        originalTime, reason, () -> {
+                    // ÉTAPE 3 : Proposition de recherche d'alternative
+                    showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                            originalCriteria, originalTransportType);
+                });
+            });
+        });
+    } étape avec des pop-ups séquentiels
+        SwingUtilities.invokeLater(() -> {
+            // ÉTAPE 1 : Notification d'incident
+            showIncidentNotification(reason, () -> {
+                // ÉTAPE 2 : Annonce d'annulation du trajet
+                showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                        originalTime, reason, () -> {
+                    // ÉTAPE 3 : Proposition de recherche d'alternative
+                    showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                            originalCriteria, originalTransportType);
+                });
+            });
+        });  "🚨 TRAJET ANNULÉ\n\n" +     String message = String.format(
+                "🚨 TRAJET ANNULÉ\n\n" +
+                "Trajet annulé: %s → %s (à %s)\n" +
+                "Motif: %s\n\n" +
+                "Souhaitez-vous rechercher un trajet de remplacement ?",
+                originalDeparture, originalDestination, formatTime(originalTime), reason);s réservés sont impactés et ne déclenche l'alerte
+ * que si le client est réellement concerné
+ * 
+ * @author System
+ */
+public class ClientAlertHandler extends OneShotBehaviour {
+    
+    private String alertContent;
+    private String impactedStart;
+    private String impactedStop;
+    private static boolean isProcessing = false; // Protection contre l'exécution simultanée
+    
+    /**
+     * Formate l'heure depuis un entier (ex: 1200) vers une chaîne lisible (ex: "12h00")
+     */
+    private String formatTime(int time) {
+        int hours = time / 100;
+        int minutes = time % 100;
+        return String.format("%dh%02d", hours, minutes);
+    }
+    
+    public ClientAlertHandler(Agent agent, String alertContent) {
+        super(agent);
+        this.alertContent = alertContent;
+        parseAlert();
+    }
+    
+    /**
+     * Parse le contenu de l'alerte pour extraire les informations
+     */
+    private void parseAlert() {
+        try {
+            // Vérifier si c'est un message d'annulation de trajet
+            if (alertContent.startsWith("JOURNEY_CANCELLED")) {
+                handleJourneyCancellation();
+                return;
+            }
+            
+            // Sinon, traiter comme une alerte trafic normale
+            // Format attendu : TYPE|SEVERITY|FROM|TO|DESCRIPTION
+            String[] parts = alertContent.split("\\|");
+            if (parts.length >= 4) {
+                this.impactedStart = parts[2].trim().toUpperCase();
+                this.impactedStop = parts[3].trim().toUpperCase();
+            } else {
+                // Fallback pour ancien format "start,stop"
+                String[] oldFormat = alertContent.split(",");
+                if (oldFormat.length >= 2) {
+                    this.impactedStart = oldFormat[0].trim().toUpperCase();
+                    this.impactedStop = oldFormat[1].trim().toUpperCase();
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Erreur lors du parsing de l'alerte: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public void action() {
+        // Protection contre exécution simultanée multiple
+        if (isProcessing) {
+            System.out.println("ℹ️ INFO: Traitement en cours, ignoré pour éviter les doublons.");
+            return;
+        }
+        
+        isProcessing = true;
+        try {
+            // Vérifier si c'est un message d'annulation de trajet
+            if (alertContent.startsWith("JOURNEY_CANCELLED")) {
+                handleJourneyCancellation();
+                return;
+            }
+            
+            // Sinon, traiter comme une alerte trafic normale
+            System.out.println("ClientAlertHandler: Traitement de l'alerte pour " + impactedStart + " → " + impactedStop);
+            
+            TravellerAgent traveller = (TravellerAgent) myAgent;
+            
+            // Vérifier si l'alerte concerne l'un des trajets réservés du client
+            List<ComposedJourney> bookedJourneys = traveller.getBookedJourneys();
+            System.out.println("DEBUG: Nombre de trajets réservés: " + bookedJourneys.size());
+            
+            boolean isImpacted = false;
+        
+        for (int i = 0; i < bookedJourneys.size(); i++) {
+            ComposedJourney journey = bookedJourneys.get(i);
+            System.out.println("DEBUG: Vérification trajet " + i + ": " + journey);
+            
+            if (journey != null && journey.getJourneys() != null) {
+                System.out.println("DEBUG: Trajet a " + journey.getJourneys().size() + " segments");
+                for (Journey segment : journey.getJourneys()) {
+                    System.out.println("DEBUG: Segment: " + segment.getStart() + " → " + segment.getStop());
+                    System.out.println("DEBUG: Comparaison avec alerte: " + impactedStart + " → " + impactedStop);
+                }
+            }
+            
+            if (isJourneyImpacted(journey)) {
+                isImpacted = true;
+                break;
+            }
+        }
+        
+        // Ne déclencher l'alerte que si le client est réellement impacté
+        if (isImpacted) {
+            System.out.println("🚨 ALERTE: Le client a des trajets impactés par l'incident!");
+            showImpactAlert();
+        } else {
+            System.out.println("ℹ️ INFO: L'incident n'affecte aucun trajet du client. Pas d'alerte nécessaire.");
+        }
+        } finally {
+            // Remettre le flag à false après traitement
+            isProcessing = false;
+        }
+    }
+    
+    /**
+     * Gère l'annulation d'un trajet spécifique
+     */
+    private void handleJourneyCancellation() {
+        try {
+            // Format: JOURNEY_CANCELLED|START|STOP|MEANS|DEPARTURE|REASON
+            String[] parts = alertContent.split("\\|");
+            if (parts.length < 6) return;
+            
+            String cancelledStart = parts[1].trim();
+            String cancelledStop = parts[2].trim();
+            String cancelledMeans = parts[3].trim();
+            int cancelledDeparture = Integer.parseInt(parts[4].trim());
+            String reason = parts[5].trim();
+            
+            TravellerAgent traveller = (TravellerAgent) myAgent;
+            
+            // Créer une clé unique pour ce trajet annulé
+            String cancellationKey = String.format("%s|%s|%s|%d", 
+                cancelledStart, cancelledStop, cancelledMeans, cancelledDeparture);
+            
+            // Vérifier si cette annulation a déjà été traitée pour ce client
+            if (traveller.isAlreadyProcessed(cancellationKey)) {
+                System.out.println("ℹ️ INFO: Annulation déjà traitée pour ce client, ignorée.");
+                return;
+            }
+            
+            System.out.println("ClientAlertHandler: Traitement d'annulation de trajet: " + 
+                             cancelledStart + " → " + cancelledStop);
+            
+            // Vérifier si le client a ce trajet dans ses réservations
+            List<ComposedJourney> bookedJourneys = traveller.getBookedJourneys();
+            boolean hasAffectedJourney = false;
+            
+            for (ComposedJourney journey : bookedJourneys) {
+                if (hasMatchingSegment(journey, cancelledStart, cancelledStop, cancelledMeans, cancelledDeparture)) {
+                    hasAffectedJourney = true;
+                    break;
+                }
+            }
+            
+            if (hasAffectedJourney) {
+                // Marquer cette annulation comme traitée
+                traveller.markAsProcessed(cancellationKey);
+                
+                System.out.println("🚨 CLIENT IMPACTÉ: Trajet annulé détecté dans ses réservations!");
+                showCancellationAlert(cancelledStart, cancelledStop, cancelledMeans, reason);
+                
+                // Extraire les paramètres du trajet annulé pour proposer des alternatives
+                ComposedJourney cancelledJourney = findCancelledJourney(traveller.getBookedJourneys(), 
+                    cancelledStart, cancelledStop, cancelledMeans, cancelledDeparture);
+                
+                removeCancelledJourneyFromBookings(cancelledStart, cancelledStop, cancelledMeans, cancelledDeparture);
+                
+                // Proposer des itinéraires alternatifs
+                if (cancelledJourney != null) {
+                    proposeAlternativeRoutes(cancelledJourney, reason);
+                }
+            } else {
+                // Marquer comme traité même si non impacté pour éviter les logs répétés
+                traveller.markAsProcessed(cancellationKey);
+                System.out.println("ℹ️ INFO: Trajet annulé ne concerne pas ce client.");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Erreur lors du traitement de l'annulation: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Vérifie si un trajet composé contient un segment correspondant au trajet annulé
+     */
+    private boolean hasMatchingSegment(ComposedJourney journey, String start, String stop, String means, int departure) {
+        if (journey == null || journey.getJourneys() == null) return false;
+        
+        for (Journey segment : journey.getJourneys()) {
+            if (segment.getStart().equalsIgnoreCase(start) &&
+                segment.getStop().equalsIgnoreCase(stop) &&
+                segment.getMeans().equalsIgnoreCase(means) &&
+                segment.getDepartureDate() == departure) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Affiche l'alerte d'annulation de trajet
+     */
+    private void showCancellationAlert(String start, String stop, String means, String reason) {
+        SwingUtilities.invokeLater(() -> {
+            String alertMessage = "❌ TRAJET ANNULÉ - ACTION REQUISE\n\n" +
+                                "🚫 Le trajet suivant a été annulé :\n" +
+                                "📍 " + start + " → " + stop + " (" + means + ")\n\n" +
+                                "📝 Motif: " + reason + "\n\n" +
+                                "⚠️ Ce trajet a été automatiquement supprimé de vos réservations.\n" +
+                                "Recherchez un trajet alternatif.";
+            
+            JOptionPane.showMessageDialog(null,
+                alertMessage,
+                "❌ Trajet Annulé",
+                JOptionPane.ERROR_MESSAGE);
+        });
+    }
+    
+    /**
+     * Supprime le trajet annulé des réservations du client
+     */
+    private void removeCancelledJourneyFromBookings(String start, String stop, String means, int departure) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                TravellerAgent traveller = (TravellerAgent) myAgent;
+                traveller.removeCancelledJourney(start, stop, means, departure);
+            } catch (Exception e) {
+                System.err.println("Erreur lors de la suppression du trajet annulé: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Vérifie si un trajet composé est impacté par l'alerte
+     */
+    private boolean isJourneyImpacted(ComposedJourney journey) {
+        if (journey == null || journey.getJourneys() == null) return false;
+        
+        for (Journey segment : journey.getJourneys()) {
+            if (isSegmentImpacted(segment)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * Vérifie si un segment de trajet est impacté
+     */
+    private boolean isSegmentImpacted(Journey segment) {
+        String start = segment.getStart().toUpperCase();
+        String stop = segment.getStop().toUpperCase();
+        
+        return (start.equals(impactedStart) && stop.equals(impactedStop)) ||
+               (start.equals(impactedStop) && stop.equals(impactedStart));
+    }
+    
+    /**
+     * Affiche l'alerte car le client est réellement impacté
+     */
+    private void showImpactAlert() {
+        SwingUtilities.invokeLater(() -> {
+            String alertMessage = "🚨 ALERTE TRAFIC - VOS TRAJETS IMPACTÉS\n\n" +
+                                "⚠️ Incident sur le tronçon: " + impactedStart + " ↔ " + impactedStop + "\n\n" +
+                                "❌ Un ou plusieurs de vos trajets réservés sont affectés.\n" +
+                                "Vérifiez vos réservations et recherchez des alternatives.";
+            
+            JOptionPane.showMessageDialog(null,
+                alertMessage,
+                "🚨 Alerte - Trajets Impactés",
+                JOptionPane.WARNING_MESSAGE);
+        });
+    }
+    
+    /**
+     * Trouve le trajet annulé dans les réservations du client
+     */
+    private ComposedJourney findCancelledJourney(List<ComposedJourney> bookedJourneys, 
+            String start, String stop, String means, int departure) {
+        for (ComposedJourney journey : bookedJourneys) {
+            if (hasMatchingSegment(journey, start, stop, means, departure)) {
+                return journey;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Propose des itinéraires alternatifs pour remplacer le trajet annulé
+     */
+    private void proposeAlternativeRoutes(ComposedJourney cancelledJourney, String reason) {
+        if (cancelledJourney == null || cancelledJourney.getJourneys().isEmpty()) return;
+        
+        // Récupérer les informations du trajet global (point de départ et d'arrivée)
+        Journey firstSegment = cancelledJourney.getJourneys().get(0);
+        Journey lastSegment = cancelledJourney.getJourneys().get(cancelledJourney.getJourneys().size() - 1);
+        
+        String originalDeparture = firstSegment.getStart();
+        String originalDestination = lastSegment.getStop();
+        int originalTime = firstSegment.getDepartureDate();
+        
+        // Récupérer les préférences originales sauvegardées
+        String originalCriteria = cancelledJourney.getOriginalCriteria();
+        String originalTransportType = cancelledJourney.getOriginalTransportType();
+        
+        System.out.println("🔍 Proposition de recherche d'alternatives pour le trajet annulé: " + 
+                          originalDeparture + " → " + originalDestination);
+        System.out.println("📋 Préférences récupérées - Critère: '" + originalCriteria + 
+                          "', Transport: '" + originalTransportType + "'");
+        System.out.println("📊 DEBUG: Valeurs brutes - getCriteria()='" + originalCriteria + 
+                          "', getTransportType()='" + originalTransportType + "'");
+        
+        // Demander à l'utilisateur s'il veut un remplacement et ses préférences
+        SwingUtilities.invokeLater(() -> {
+            String message = String.format(
+                "� TRAJET ANNULÉ\n\n" +
+                "Trajet annulé: %s → %s (à %s)\n" +
+                "Motif: %s\n\n" +
+            // ÉTAPE 1 : Notification d'incident
+            showIncidentNotification(reason, () -> {
+                // ÉTAPE 2 : Annonce d'annulation du trajet
+                showJourneyCancellationNotification(originalDeparture, originalDestination, 
+                        originalTime, reason, () -> {
+                    // ÉTAPE 3 : Proposition de recherche d'alternative
+                    showReplacementProposal(originalDeparture, originalDestination, originalTime, 
+                            originalCriteria, originalTransportType);
+                });
+            });
+        });
+    }
+    
+    /**
+     * Affiche un dialogue pour choisir les préférences de recherche
+     */
+    private void showPreferencesDialog(String departure, String destination, int time) {
+        SwingUtilities.invokeLater(() -> {
+            String[] criteriaOptions = {"cheapest", "fastest", "comfortable"};
+            String[] transportOptions = {"any", "bus", "car", "bike", "tram"};
+            
+            // Créer un panel personnalisé pour le dialogue
+            JPanel panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            
+            // Titre
+            JLabel titleLabel = new JLabel("🔍 PRÉFÉRENCES DE RECHERCHE");
+            titleLabel.setFont(titleLabel.getFont().deriveFont(16f));
+            panel.add(titleLabel);
+            panel.add(Box.createVerticalStrut(15));
+            
+            // Critère de recherche
+            JLabel criteriaLabel = new JLabel("Critère prioritaire :");
+            panel.add(criteriaLabel);
+            JComboBox<String> criteriaCombo = new JComboBox<>(criteriaOptions);
+            criteriaCombo.setSelectedIndex(0); // "cheapest" par défaut
+            panel.add(criteriaCombo);
+            panel.add(Box.createVerticalStrut(10));
+            
+            // Type de transport
+            JLabel transportLabel = new JLabel("Type de transport :");
+            panel.add(transportLabel);
+            JComboBox<String> transportCombo = new JComboBox<>(transportOptions);
+            transportCombo.setSelectedIndex(0); // "any" par défaut
+            panel.add(transportCombo);
+            panel.add(Box.createVerticalStrut(10));
+            
+            // Informations du trajet
+            JLabel infoLabel = new JLabel(String.format(
+                "<html><b>Trajet :</b> %s → %s<br><b>Heure :</b> %s</html>", 
+                departure, destination, formatTime(time)));
+            panel.add(infoLabel);
+            
+            int result = JOptionPane.showConfirmDialog(null, panel, 
+                "Préférences de recherche", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            
+            if (result == JOptionPane.OK_OPTION) {
+                String selectedCriteria = (String) criteriaCombo.getSelectedItem();
+                String selectedTransport = (String) transportCombo.getSelectedItem();
+                
+                System.out.println("✅ Recherche lancée avec critère: " + selectedCriteria + 
+                                 ", transport: " + selectedTransport);
+                
+                // Afficher notification de recherche en cours
+                JOptionPane.showMessageDialog(null,
+                    String.format("🔄 Recherche en cours...\n\nCritère: %s\nTransport: %s", 
+                                selectedCriteria, selectedTransport),
+                    "Recherche d'alternatives",
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                // Lancer la recherche avec les préférences choisies
+                launchAlternativeSearch(departure, destination, time, selectedCriteria, selectedTransport);
+            } else {
+                System.out.println("ℹ️ L'utilisateur a annulé la recherche de remplacement.");
+            }
+        });
+    }
+    
+    /**
+     * Lance la recherche d'alternatives avec les préférences spécifiées
+     */
+    private void launchAlternativeSearch(String departure, String destination, int time, 
+                                       String criteria, String transportType) {
+        TravellerAgent traveller = (TravellerAgent) myAgent;
+        traveller.addBehaviour(new OneShotBehaviour() {
+            @Override
+            public void action() {
+                try {
+                    Thread.sleep(500); // Petit délai pour l'affichage
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                
+                // Relancer une recherche avec les paramètres choisis par l'utilisateur
+                traveller.addBehaviour(new ContractNetAchat(traveller, new ACLMessage(ACLMessage.CFP),
+                    departure, destination, time, criteria, transportType));
+                    
+                System.out.println("🚀 Nouvelle recherche lancée: " + departure + " → " + 
+                                 destination + " à " + formatTime(time) + " avec critère '" + criteria + 
+                                 "' et transport '" + transportType + "'");
+            }
+        });
+    }
+    
+    /**
+     * Traduit les critères techniques en français
+     */
+    private String translateCriteria(String criteria) {
+        return switch (criteria) {
+            case "cheapest", "cost" -> "Moins cher";
+            case "fastest", "duration" -> "Plus rapide";
+            case "comfortable", "confort" -> "Plus confortable";
+            case "duration-cost" -> "Équilibre durée/coût";
+            default -> criteria;
+        };
+    }
+    
+    /**
+     * Traduit les types de transport en français
+     */
+    private String translateTransport(String transport) {
+        return switch (transport) {
+            case "any" -> "Tous transports";
+            case "bus" -> "Bus";
+            case "car" -> "Voiture";
+            case "bike" -> "Vélo";
+            case "tram" -> "Tramway";
+            default -> transport;
+        };
+    }
+    
+    /**
+     * ÉTAPE 1 : Affiche la notification d'incident sur la ligne
+     */
+    private void showIncidentNotification(String reason, Runnable onContinue) {
+        String message = String.format(
+            "🚨 INCIDENT SIGNALÉ\n\n" +
+            "⚠️ Un incident a été signalé sur le réseau de transport :\n\n" +
+            "📝 Motif : %s\n\n" +
+            "Vérification de l'impact sur vos trajets en cours...",
+            reason);
+            
+        JOptionPane.showMessageDialog(null,
+            message,
+            "🚨 Alerte Trafic",
+            JOptionPane.WARNING_MESSAGE);
+            
+        // Passer à l'étape suivante APRÈS que l'utilisateur ait fermé le dialog
+        if (onContinue != null) {
+            SwingUtilities.invokeLater(onContinue);
+        }
+    }
+    
+    /**
+     * ÉTAPE 2 : Annonce l'annulation du trajet spécifique
+     */
+    private void showJourneyCancellationNotification(String departure, String destination, 
+            int time, String reason, Runnable onContinue) {
+        String message = String.format(
+            "❌ TRAJET ANNULÉ\n\n" +
+            "Votre trajet réservé a été annulé :\n\n" +
+            "📍 Itinéraire : %s → %s\n" +
+            "🕐 Heure prévue : %s\n" +
+            "📝 Motif : %s\n\n" +
+            "Ce trajet a été automatiquement supprimé\n" +
+            "de vos réservations.",
+            departure, destination, formatTime(time), reason);
+            
+        JOptionPane.showMessageDialog(null,
+            message,
+            "❌ Trajet Annulé",
+            JOptionPane.ERROR_MESSAGE);
+            
+        // Passer à l'étape suivante APRÈS que l'utilisateur ait fermé le dialog
+        if (onContinue != null) {
+            SwingUtilities.invokeLater(onContinue);
+        }
+    }
+    
+    /**
+     * ÉTAPE 3 : Propose la recherche d'un trajet de remplacement
+     */
+    private void showReplacementProposal(String departure, String destination, int time, 
+            String criteria, String transportType) {
+        String message = String.format(
+            "🔄 TRAJET DE REMPLACEMENT\n\n" +
+            "Souhaitez-vous que nous recherchions\n" +
+            "un trajet alternatif ?\n\n" +
+            "📍 Itinéraire : %s → %s\n" +
+            "🕐 Heure souhaitée : %s\n\n" +
+            "💡 Nous utiliserons vos préférences d'origine :\n" +
+            "   • Critère : %s\n" +
+            "   • Transport : %s",
+            departure, destination, formatTime(time),
+            translateCriteria(criteria), translateTransport(transportType));
+            
+        int choice = JOptionPane.showConfirmDialog(null,
+            message,
+            "🔄 Recherche d'Alternative",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
+        
+        if (choice == JOptionPane.YES_OPTION) {
+            // L'utilisateur accepte, lancer la recherche
+            showSearchInProgress(criteria, transportType, time);
+            launchAlternativeSearch(departure, destination, time, criteria, transportType);
+        } else {
+            // L'utilisateur refuse
+            showSearchDeclined();
+        }
+    }
+    
+    /**
+     * Affiche le dialog de recherche en cours
+     */
+    private void showSearchInProgress(String criteria, String transportType, int time) {
+        String message = String.format(
+            "🔍 RECHERCHE EN COURS\n\n" +
+            "Recherche d'alternatives en cours...\n\n" +
+            "⚙️ Paramètres utilisés :\n" +
+            "   • Critère : %s\n" +
+            "   • Transport : %s\n" +
+            "   • Heure : %s\n\n" +
+            "Veuillez patienter...",
+            translateCriteria(criteria), translateTransport(transportType), formatTime(time));
+            
+        JOptionPane.showMessageDialog(null,
+            message,
+            "🔍 Recherche d'Alternatives",
+            JOptionPane.INFORMATION_MESSAGE);
+        
+        System.out.println("✅ Recherche lancée avec les préférences originales");
+    }
+    
+    /**
+     * Affiche le message quand l'utilisateur refuse la recherche
+     */
+    private void showSearchDeclined() {
+        String message = "ℹ️ RECHERCHE ANNULÉE\n\n" +
+                        "Vous avez choisi de ne pas rechercher\n" +
+                        "de trajet alternatif.\n\n" +
+                        "Vous pouvez effectuer une nouvelle\n" +
+                        "recherche manuellement si nécessaire.";
+                        
+        JOptionPane.showMessageDialog(null,
+            message,
+            "ℹ️ Recherche Non Effectuée",
+            JOptionPane.INFORMATION_MESSAGE);
+            
+        System.out.println("ℹ️ L'utilisateur a refusé la recherche de remplacement.");
+    }
+}

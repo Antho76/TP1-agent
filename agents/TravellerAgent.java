@@ -67,11 +67,21 @@ public class TravellerAgent extends GuiAgent {
      * gui
      */
     private TravellerGui window;
+    
+    /**
+     * Liste des trajets réservés par l'agent (source de vérité)
+     */
+    private List<ComposedJourney> bookedJourneys;
 
     /**
      * Text enhancement service for improving communication
      */
     private TextEnhancementService textEnhancer;
+
+    /**
+     * Cache pour éviter les traitements multiples d'annulation
+     */
+    private java.util.Set<String> processedCancellations = new java.util.HashSet<>();
 
     /**
      * Initialisation de l'agent
@@ -83,6 +93,9 @@ public class TravellerAgent extends GuiAgent {
         
         // Initialize text enhancement service
         textEnhancer = TextEnhancementService.getInstance();
+        
+        // Initialize booked journeys list
+        this.bookedJourneys = new ArrayList<>();
         
         // Message de bienvenue simplifié (pas de logs techniques)
         window.println("🎉 Bienvenue dans votre assistant de voyage !");
@@ -101,11 +114,22 @@ public class TravellerAgent extends GuiAgent {
         topic = AgentServicesTools.generateTopicAID(this, "TRAFFIC NEWS");
         //ecoute des messages radio avec gestion intelligente des alertes
         addBehaviour(new ReceiverBehaviour(this, -1, MessageTemplate.MatchTopic(topic), true, (a, m) -> {
-            // Afficher brièvement l'alerte
-            window.println("🚨 Alerte trafic reçue: " + m.getContent());
-            
-            // Déclencher le gestionnaire d'alertes intelligent
-            addBehaviour(new comportements.ClientAlertHandler(this, m.getContent()));
+            // Vérifier d'abord si ce message a déjà été traité
+            String messageContent = m.getContent();
+            if (messageContent != null && !messageContent.isEmpty()) {
+                // Créer une clé unique pour ce message
+                String messageKey = "MSG_" + messageContent.hashCode();
+                
+                // Ne traiter que si pas déjà traité
+                if (!isAlreadyProcessed(messageKey)) {
+                    markAsProcessed(messageKey);
+                    // Afficher brièvement l'alerte
+                    window.println("🚨 Alerte trafic reçue: " + messageContent);
+                    
+                    // Déclencher le gestionnaire d'alertes intelligent
+                    addBehaviour(new comportements.ClientAlertHandler(this, messageContent));
+                }
+            }
         }));
     }
 
@@ -218,6 +242,13 @@ public class TravellerAgent extends GuiAgent {
             default -> journeys.sort(Comparator.comparingDouble(ComposedJourney::getCost));
         }
         myJourney = journeys.getFirst();
+        
+        // Sauvegarder les préférences de recherche originales dans le trajet
+        if (myJourney != null) {
+            myJourney.setOriginalCriteria(preference);
+            myJourney.setOriginalTransportType(transportType);
+            System.out.println("DEBUG: Préférences sauvegardées - Critère: " + preference + ", Transport: " + transportType);
+        }
         
         // Affichage naturel du voyage sélectionné et demande de confirmation
         String naturalMessage = formatJourneyNaturally(myJourney);
@@ -354,8 +385,11 @@ public class TravellerAgent extends GuiAgent {
             .reduce((t1, t2) -> t1 + "+" + t2)
             .orElse("Transport");
         
-        return String.format("%s | %s | %d min | %.2f€", 
-                routeBuilder.toString(), transports, duration, cost);
+        // Obtenir l'heure de départ du premier segment
+        int departureTime = journeys.get(0).getDepartureDate();
+        
+        return String.format("%s - %s | %s | %d min | %.2f€", 
+                formatTime(departureTime), routeBuilder.toString(), transports, duration, cost);
     }
 
     /**
@@ -441,10 +475,56 @@ public class TravellerAgent extends GuiAgent {
      * @return Liste des trajets réservés
      */
     public List<ComposedJourney> getBookedJourneys() {
-        if (window != null) {
-            return window.getBookedJourneys();
+        return new ArrayList<>(bookedJourneys);
+    }
+    
+    /**
+     * Ajoute un trajet à la liste des réservations
+     * @param journey Le trajet à ajouter
+     */
+    public void addBookedJourney(ComposedJourney journey) {
+        if (journey != null) {
+            bookedJourneys.add(journey);
+            System.out.println("📝 Trajet ajouté aux réservations de l'agent: " + journey.getJourneys().get(0).getStart() + 
+                             " → " + journey.getJourneys().get(journey.getJourneys().size()-1).getStop());
         }
-        return new ArrayList<>();
+    }
+    
+    /**
+     * Supprime un trajet de la liste des réservations
+     * @param journey Le trajet à supprimer
+     * @return true si le trajet a été supprimé, false sinon
+     */
+    public boolean removeBookedJourney(ComposedJourney journey) {
+        if (journey != null && bookedJourneys.remove(journey)) {
+            System.out.println("❌ Trajet supprimé des réservations de l'agent: " + journey.getJourneys().get(0).getStart() + 
+                             " → " + journey.getJourneys().get(journey.getJourneys().size()-1).getStop());
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+     * Supprime un trajet annulé des réservations via la GUI
+     */
+    public void removeCancelledJourney(String start, String stop, String means, int departure) {
+        if (window != null) {
+            window.removeCancelledJourney(start, stop, means, departure);
+        }
+    }
+    
+    /**
+     * Vérifie si une annulation a déjà été traitée
+     */
+    public boolean isAlreadyProcessed(String cancellationKey) {
+        return processedCancellations.contains(cancellationKey);
+    }
+    
+    /**
+     * Marque une annulation comme traitée
+     */
+    public void markAsProcessed(String cancellationKey) {
+        processedCancellations.add(cancellationKey);
     }
 
     /**

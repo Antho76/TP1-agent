@@ -80,6 +80,16 @@ public class ComposedJourney implements Serializable {
      * responsible of the composed journey
      */
     private AID proposer;
+    
+    /**
+     * Préférences de recherche originales (critère utilisé lors de la recherche)
+     */
+    private String originalCriteria = "cheapest"; // valeur par défaut
+    
+    /**
+     * Type de transport préféré lors de la recherche originale
+     */
+    private String originalTransportType = "any"; // valeur par défaut
     public ComposedJourney() {
         journeys = new ArrayList<>();
     }
@@ -234,6 +244,34 @@ public class ComposedJourney implements Serializable {
      */
     public List<Journey> getJourneys() {
         return journeys;
+    }
+
+    /**
+     * @return les critères de recherche originaux
+     */
+    public String getOriginalCriteria() {
+        return originalCriteria;
+    }
+
+    /**
+     * @param originalCriteria les critères de recherche originaux à sauvegarder
+     */
+    public void setOriginalCriteria(String originalCriteria) {
+        this.originalCriteria = originalCriteria != null ? originalCriteria : "cheapest";
+    }
+
+    /**
+     * @return le type de transport préféré original
+     */
+    public String getOriginalTransportType() {
+        return originalTransportType;
+    }
+
+    /**
+     * @param originalTransportType le type de transport préféré original à sauvegarder
+     */
+    public void setOriginalTransportType(String originalTransportType) {
+        this.originalTransportType = originalTransportType != null ? originalTransportType : "any";
     }
 
     public static void main(String[] args) {

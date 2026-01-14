@@ -463,6 +463,9 @@ public class TravellerGui extends JFrame {
                 // Réserver les places dans les agences
                 myAgent.bookJourneyPlaces(journey);
                 
+                // Ajouter à la liste de l'agent (source de vérité)
+                myAgent.addBookedJourney(journey);
+                
                 // Ajouter à nos listes locales
                 bookedTrips.add(tripDetails);
                 bookedJourneys.add(journey);
@@ -493,6 +496,108 @@ public class TravellerGui extends JFrame {
                 searchResultsArea.append("\n❌ Réservation annulée par l'utilisateur.");
             }
         });
+    }
+
+    /**
+     * Rafraîchit la liste des trajets affichée en se basant sur les données de l'agent
+     */
+    public void refreshTripsList() {
+        SwingUtilities.invokeLater(() -> {
+            // Effacer la liste actuelle
+            tripsListModel.clear();
+            bookedTrips.clear();
+            
+            // Récupérer les trajets actuels de l'agent
+            List<data.ComposedJourney> currentJourneys = myAgent.getBookedJourneys();
+            
+            // Reconstruire la liste affichée
+            for (data.ComposedJourney journey : currentJourneys) {
+                String tripSummary = createTripSummaryFromJourney(journey);
+                bookedTrips.add(tripSummary);
+                tripsListModel.addElement(tripSummary);
+            }
+            
+            // Mettre à jour bookedJourneys pour rester synchronisé
+            bookedJourneys.clear();
+            bookedJourneys.addAll(currentJourneys);
+            
+            // Forcer le rafraîchissement visuel
+            tripsList.revalidate();
+            tripsList.repaint();
+            
+            System.out.println("🔄 Liste des trajets rafraîchie - " + currentJourneys.size() + " trajets affichés");
+        });
+    }
+
+    /**
+     * Force la synchronisation complète entre les données de l'agent et l'interface
+     */
+    public void forceSynchronization() {
+        SwingUtilities.invokeLater(() -> {
+            // Effacer complètement toutes les listes
+            tripsListModel.clear();
+            bookedTrips.clear();
+            bookedJourneys.clear();
+            
+            // Récupérer les données fraîches de l'agent
+            List<data.ComposedJourney> agentJourneys = myAgent.getBookedJourneys();
+            
+            // Reconstruire complètement les listes
+            for (data.ComposedJourney journey : agentJourneys) {
+                String tripSummary = createTripSummaryFromJourney(journey);
+                bookedTrips.add(tripSummary);
+                tripsListModel.addElement(tripSummary);
+                bookedJourneys.add(journey);
+            }
+            
+            // Forcer la mise à jour visuelle
+            tripsList.clearSelection();
+            tripsList.revalidate();
+            tripsList.repaint();
+            
+            // Mettre à jour le conteneur parent
+            if (tripsPanel != null) {
+                tripsPanel.revalidate();
+                tripsPanel.repaint();
+            }
+            
+            System.out.println("🔄 Synchronisation forcée terminée - " + agentJourneys.size() + " trajets synchronisés");
+        });
+    }
+
+    /**
+     * Crée un résumé d'un trajet composé
+     */
+    private String createTripSummaryFromJourney(data.ComposedJourney journey) {
+        if (journey == null || journey.getJourneys().isEmpty()) {
+            return "Trajet invalide";
+        }
+        
+        data.Journey firstSegment = journey.getJourneys().get(0);
+        data.Journey lastSegment = journey.getJourneys().get(journey.getJourneys().size() - 1);
+        
+        String departure = firstSegment.getStart();
+        String destination = lastSegment.getStop();
+        int departureTime = firstSegment.getDepartureDate();
+        
+        // Calculer durée totale et prix total
+        int totalDuration = 0;
+        double totalCost = 0.0;
+        String transportType = firstSegment.getMeans();
+        
+        for (data.Journey segment : journey.getJourneys()) {
+            totalDuration += segment.getDuration();
+            totalCost += segment.getCost();
+        }
+        
+        // Formatage de l'heure (convertir 900 en "09:00")
+        int hours = departureTime / 100;
+        int minutes = departureTime % 100;
+        String formattedTime = String.format("%02d:%02d", hours, minutes);
+        
+        // Format: "09:00 - A → B | Bus | 10 min | 3,00€"
+        return String.format("%s - %s → %s | %s | %d min | %.2f€",
+            formattedTime, departure, destination, transportType, totalDuration, totalCost);
     }
 
     /**
@@ -895,6 +1000,69 @@ public class TravellerGui extends JFrame {
      */
     public List<data.ComposedJourney> getBookedJourneys() {
         return new ArrayList<>(bookedJourneys);
+    }
+    
+    /**
+     * Supprime un trajet annulé des réservations
+     */
+    public void removeCancelledJourney(String start, String stop, String means, int departure) {
+        SwingUtilities.invokeLater(() -> {
+            try {
+                // Trouver et supprimer le trajet correspondant
+                boolean removed = false;
+                
+                for (int i = bookedJourneys.size() - 1; i >= 0; i--) {
+                    data.ComposedJourney journey = bookedJourneys.get(i);
+                    if (hasMatchingSegment(journey, start, stop, means, departure)) {
+                        // Supprimer de la liste des objets
+                        bookedJourneys.remove(i);
+                        
+                        // Supprimer aussi de la liste d'affichage
+                        if (i < bookedTrips.size()) {
+                            bookedTrips.remove(i);
+                            tripsListModel.remove(i);
+                        }
+                        
+                        removed = true;
+                        System.out.println("DEBUG: Trajet annulé supprimé des réservations: " + 
+                                         start + " → " + stop);
+                        break;
+                    }
+                }
+                
+                if (removed) {
+                    // Rafraîchir l'affichage
+                    tripsList.revalidate();
+                    tripsList.repaint();
+                    
+                    // Message de confirmation
+                    JOptionPane.showMessageDialog(this,
+                        "✅ Le trajet annulé a été supprimé de vos réservations.",
+                        "Trajet Supprimé",
+                        JOptionPane.INFORMATION_MESSAGE);
+                }
+                
+            } catch (Exception e) {
+                System.err.println("Erreur lors de la suppression du trajet annulé: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Vérifie si un trajet composé contient un segment correspondant
+     */
+    private boolean hasMatchingSegment(data.ComposedJourney journey, String start, String stop, String means, int departure) {
+        if (journey == null || journey.getJourneys() == null) return false;
+        
+        for (data.Journey segment : journey.getJourneys()) {
+            if (segment.getStart().equalsIgnoreCase(start) &&
+                segment.getStop().equalsIgnoreCase(stop) &&
+                segment.getMeans().equalsIgnoreCase(means) &&
+                segment.getDepartureDate() == departure) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static void main(String[] args) {
