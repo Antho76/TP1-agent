@@ -262,6 +262,59 @@ public class TextEnhancementService {
     }
     
     /**
+     * Generate alternative route suggestions using AI
+     * @param impactedFrom Origin of impacted route
+     * @param impactedTo Destination of impacted route
+     * @param userFrom User's actual starting point
+     * @param userTo User's actual destination
+     * @return AI-generated alternative suggestions
+     */
+    public String generateAlternativeRouteSuggestions(String impactedFrom, String impactedTo, 
+                                                    String userFrom, String userTo) {
+        if (!ollamaAvailable) {
+            return generateFallbackSuggestions(impactedFrom, impactedTo, userFrom, userTo);
+        }
+        
+        try {
+            String systemPrompt = "Tu es un expert en transport urbain et mobilité. Tu dois proposer des alternatives " +
+                "de transport intelligentes et pratiques. Sois concis, utile et créatif dans tes suggestions. " +
+                "Propose différents moyens de transport et stratégies d'évitement.";
+            
+            String userQuery = String.format(
+                "SITUATION: Il y a une perturbation sur la ligne %s ↔ %s. " +
+                "Un usager veut aller de %s à %s. " +
+                "Propose 3-4 alternatives concrètes et pratiques, en utilisant différents moyens de transport " +
+                "(bus, métro, tramway, vélo, marche, covoiturage...). " +
+                "Sois créatif et pratique. Format: courtes puces avec émojis.",
+                impactedFrom, impactedTo, userFrom, userTo
+            );
+            
+            String response = simpleChat(systemPrompt, userQuery);
+            return (response != null && !response.trim().isEmpty()) 
+                ? response.trim() 
+                : generateFallbackSuggestions(impactedFrom, impactedTo, userFrom, userTo);
+                
+        } catch (Exception e) {
+            System.err.println("Alternative route generation failed: " + e.getMessage());
+            return generateFallbackSuggestions(impactedFrom, impactedTo, userFrom, userTo);
+        }
+    }
+    
+    /**
+     * Generate fallback suggestions when AI is not available
+     */
+    private String generateFallbackSuggestions(String impactedFrom, String impactedTo, 
+                                             String userFrom, String userTo) {
+        return "💡 SUGGESTIONS ALTERNATIVES:\n\n" +
+               "🚌 Rechercher des lignes de bus alternatives\n" +
+               "🚊 Vérifier les connections tramway/métro\n" +
+               "🚴‍♂️ Envisager le vélo ou vélo-partage\n" +
+               "🚶‍♀️ Combiner marche + transports publics\n" +
+               "🚗 Options covoiturage ou taxi\n\n" +
+               "💬 Consultez les apps de transport en temps réel !";
+    }
+    
+    /**
      * Set custom model (if available)
      */
     public boolean setModel(String newModel) {

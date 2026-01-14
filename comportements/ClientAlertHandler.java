@@ -3,8 +3,7 @@ package comportements;
 import jade.core.Agent;
 import jade.core.behaviours.OneShotBehaviour;
 
-import javax.swing.SwingUtilities;
-import javax.swing.JOptionPane;
+import javax.swing.*;
 
 /**
  * Comportement de gestion des alertes pour le client
@@ -51,20 +50,23 @@ public class ClientAlertHandler extends OneShotBehaviour {
     public void action() {
         System.out.println("ClientAlertHandler: Traitement de l'alerte pour " + impactedStart + " → " + impactedStop);
         
-        // Afficher l'information d'alerte au client
-        showAlertInfo("🚨 ALERTE TRAFIC\n\nTronçon impacté: " + impactedStart + " ↔ " + impactedStop + 
-                     "\n\nVérifiez vos trajets réservés et recherchez des alternatives si nécessaire.");
+        // Afficher simplement l'alerte
+        showSimpleAlert();
     }
     
     /**
-     * Affiche une information d'alerte à l'utilisateur
+     * Affiche une alerte simple sans proposition d'alternatives
      */
-    private void showAlertInfo(String message) {
+    private void showSimpleAlert() {
         SwingUtilities.invokeLater(() -> {
+            String alertMessage = "🚨 ALERTE TRAFIC\n\n" +
+                                "Tronçon impacté: " + impactedStart + " ↔ " + impactedStop + "\n\n" +
+                                "Vérifiez vos trajets réservés et consultez les infos trafic en temps réel.";
+            
             JOptionPane.showMessageDialog(null,
-                message,
-                "🚨 Information Trafic",
-                JOptionPane.INFORMATION_MESSAGE);
+                alertMessage,
+                "� Information Trafic",
+                JOptionPane.WARNING_MESSAGE);
         });
     }
 }
