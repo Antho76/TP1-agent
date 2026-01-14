@@ -889,6 +889,14 @@ public class TravellerGui extends JFrame {
         searchResultsArea.setBackground(color);
     }
 
+    /**
+     * Récupère la liste des trajets réservés
+     * @return Liste des trajets réservés
+     */
+    public List<data.ComposedJourney> getBookedJourneys() {
+        return new ArrayList<>(bookedJourneys);
+    }
+
     public static void main(String[] args) {
         TravellerGui test = new TravellerGui(null);
         test.setVisible(true);

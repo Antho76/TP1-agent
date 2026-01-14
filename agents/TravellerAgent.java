@@ -223,8 +223,8 @@ public class TravellerAgent extends GuiAgent {
         String naturalMessage = formatJourneyNaturally(myJourney);
         String tripSummary = createTripSummary(myJourney);
         
-        // Utiliser la nouvelle méthode avec confirmation de l'interface
-        window.addBookedTripWithConfirmation(tripSummary, naturalMessage);
+        // Utiliser la méthode avec gestion complète des stocks et objets ComposedJourney
+        window.addBookedTripWithConfirmation(myJourney, tripSummary, naturalMessage);
     }
 
     /**
@@ -329,10 +329,23 @@ public class TravellerAgent extends GuiAgent {
             return "Trajet non valide";
         }
         
-        String fromStation = journey.getJourneys().get(0).getStart();
-        String toStation = journey.getJourneys().get(journey.getJourneys().size()-1).getStop();
         int duration = (int)journey.getDuration();
         double cost = journey.getCost();
+        
+        // Créer le trajet complet avec toutes les étapes
+        StringBuilder routeBuilder = new StringBuilder();
+        List<data.Journey> journeys = journey.getJourneys();
+        
+        // Ajouter tous les points du trajet (A → B → E)
+        for (int i = 0; i < journeys.size(); i++) {
+            if (i == 0) {
+                // Premier segment : ajouter départ et arrivée
+                routeBuilder.append(journeys.get(i).getStart()).append(" → ").append(journeys.get(i).getStop());
+            } else {
+                // Segments suivants : ajouter seulement l'arrivée
+                routeBuilder.append(" → ").append(journeys.get(i).getStop());
+            }
+        }
         
         // Obtenir les types de transport utilisés
         String transports = journey.getJourneys().stream()
@@ -341,8 +354,8 @@ public class TravellerAgent extends GuiAgent {
             .reduce((t1, t2) -> t1 + "+" + t2)
             .orElse("Transport");
         
-        return String.format("%s → %s | %s | %d min | %.2f€", 
-                fromStation, toStation, transports, duration, cost);
+        return String.format("%s | %s | %d min | %.2f€", 
+                routeBuilder.toString(), transports, duration, cost);
     }
 
     /**
@@ -421,6 +434,17 @@ public class TravellerAgent extends GuiAgent {
 
     public ComposedJourney getMyJourney() {
         return myJourney;
+    }
+
+    /**
+     * Récupère la liste de tous les trajets réservés par le client
+     * @return Liste des trajets réservés
+     */
+    public List<ComposedJourney> getBookedJourneys() {
+        if (window != null) {
+            return window.getBookedJourneys();
+        }
+        return new ArrayList<>();
     }
 
     /**
