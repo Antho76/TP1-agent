@@ -359,6 +359,58 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
     }
     
     /**
+     * Cancel a booking for this journey and restore available places
+     * @param currentTime current time for bike zone management  
+     * @return true if cancellation successful
+     */
+    public boolean cancelBooking(int currentTime) {
+        // Special handling for bikes
+        if (means != null && (means.equalsIgnoreCase("BIKE") || means.equalsIgnoreCase("VELO") || means.equalsIgnoreCase("VÉLO"))) {
+            BikeZoneManager bikeManager = BikeZoneManager.getInstance();
+            return bikeManager.returnBike(stop, currentTime);
+        }
+        
+        // Regular handling for other transport types
+        // Check capacity based on transport type before increasing places
+        int maxCapacity = getMaxCapacity();
+        if (places < maxCapacity) {
+            places++;
+            return true;
+        }
+        return false; // Already at max capacity
+    }
+    
+    /**
+     * Cancel a booking for this journey (backward compatibility)
+     * @return true if cancellation successful
+     */
+    public boolean cancelBooking() {
+        return cancelBooking(departureDate);
+    }
+    
+    /**
+     * Get maximum capacity based on transport type
+     * @return maximum capacity for this transport type
+     */
+    private int getMaxCapacity() {
+        if (means == null) return CAR_CAPACITY; // default
+        
+        switch (means.toUpperCase()) {
+            case "BUS":
+                return BUS_CAPACITY;
+            case "TRAM":
+                return TRAM_CAPACITY;
+            case "BIKE":
+            case "VELO":
+            case "VÉLO":
+                return BIKE_CAPACITY;
+            case "CAR":
+            default:
+                return CAR_CAPACITY;
+        }
+    }
+    
+    /**
      * Get the initial capacity for this type of transport
      * @return initial capacity
      */

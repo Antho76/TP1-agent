@@ -420,4 +420,28 @@ public class TravellerAgent extends GuiAgent {
         return myJourney;
     }
 
+    /**
+     * Book places for a composed journey and update stock
+     * @param journey the journey to book places for
+     */
+    public void bookJourneyPlaces(ComposedJourney journey) {
+        if (journey != null && journey.getJourneys() != null) {
+            journey.getJourneys().forEach(segment -> {
+                segment.bookPlace();
+            });
+        }
+    }
+
+    /**
+     * Cancel places for a composed journey and restore stock
+     * @param journey the journey to cancel places for
+     */
+    public void cancelJourneyPlaces(ComposedJourney journey) {
+        if (journey != null && journey.getJourneys() != null) {
+            journey.getJourneys().forEach(segment -> {
+                segment.cancelBooking();
+            });
+        }
+    }
+
 }

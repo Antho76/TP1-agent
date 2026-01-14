@@ -113,16 +113,22 @@ public class ContractNetVente extends ContractNetResponder {
                                    journey.getDepartureDate() == j.getDepartureDate() &&
                                    journey.getMeans().equals(j.getMeans())))
                 .forEach(journey -> {
+                    window.println("🎫 TENTATIVE DE RÉSERVATION:");
+                    window.println("  → Trajet: " + journey.getStart() + " → " + journey.getStop());
+                    window.println("  → Transport: " + journey.getMeans() + " à " + journey.getDepartureDate());
+                    window.println("  → Places avant réservation: " + journey.getAvailablePlaces(j.getDepartureDate()));
+                    
                     // Use the new booking system
                     boolean success = journey.bookPlace(j.getDepartureDate());
                     if (success) {
-                        window.println("Place reserved for " + journey.getMeans() + " from " + 
-                                     journey.getStart() + " to " + journey.getStop() + 
-                                     ". Remaining places: " + journey.getAvailablePlaces(j.getDepartureDate()));
+                        window.println("  ✅ RÉSERVATION RÉUSSIE!");
+                        window.println("  → Places restantes: " + journey.getAvailablePlaces(j.getDepartureDate()));
+                        window.println("  → Stock mis à jour dans l'agence " + myAgent.getLocalName());
                     } else {
-                        window.println("Failed to reserve place for " + journey.getMeans() + " from " + 
-                                     journey.getStart() + " to " + journey.getStop() + " - no places available");
+                        window.println("  ❌ RÉSERVATION ÉCHOUÉE!");
+                        window.println("  → Raison: Plus de places disponibles");
                     }
+                    window.println("─".repeat(50));
                 });
         }
     }

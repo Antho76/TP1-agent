@@ -44,8 +44,8 @@ public class LaunchSimu {
 
         // allow to send arguments to the JADE launcher
         var pp = new ExtendedProperties();
-        // Interface JADE désactivée pour une expérience utilisateur plus propre
-        pp.setProperty(Profile.GUI, "false");
+        // Interface JADE activée pour voir la gestion des stocks des agents
+        pp.setProperty(Profile.GUI, "true");
         // add the Topic Management Service
         pp.setProperty(Profile.SERVICES, "jade.core.messaging.TopicManagementService;jade.core.event.NotificationService");
 

@@ -127,6 +127,34 @@ public class BikeZoneManager implements Serializable {
     }
     
     /**
+     * Return a bike immediately to a zone (for cancellations)
+     * @param zone destination zone
+     * @param currentTime current time
+     * @return true if bike was returned successfully
+     */
+    public boolean returnBike(String zone, int currentTime) {
+        String upperZone = zone.toUpperCase();
+        
+        // Initialize zone if it doesn't exist
+        if (!currentBikes.containsKey(upperZone)) {
+            initializeZone(upperZone);
+        }
+        
+        // Process any scheduled returns for this zone first
+        processScheduledReturns(upperZone, currentTime);
+        
+        // Add one bike to the zone (simulating immediate return)
+        int currentCount = currentBikes.get(upperZone);
+        if (currentCount < INITIAL_BIKES_PER_ZONE) {
+            currentBikes.put(upperZone, currentCount + 1);
+            return true;
+        }
+        
+        // Zone is already at maximum capacity
+        return false;
+    }
+    
+    /**
      * Get all zones with their current bike counts
      */
     public Map<String, Integer> getAllZonesBikes(int currentTime) {

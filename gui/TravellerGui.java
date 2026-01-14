@@ -56,6 +56,11 @@ public class TravellerGui extends JFrame {
     private JList<String> tripsList;
     private DefaultListModel<String> tripsListModel;
     private List<String> bookedTrips;
+    
+    /**
+     * Liste des trajets réels avec leurs objets ComposedJourney
+     */
+    private List<data.ComposedJourney> bookedJourneys;
 
     /**
      * Text field for natural language request
@@ -93,6 +98,7 @@ public class TravellerGui extends JFrame {
 
         // Initialisation des listes
         bookedTrips = new ArrayList<>();
+        bookedJourneys = new ArrayList<>();
         tripsListModel = new DefaultListModel<>();
 
         // Zone de texte pour les résultats de recherche
@@ -229,21 +235,24 @@ public class TravellerGui extends JFrame {
         panel.add(new JLabel("📍"), gbc);
         gbc.gridx = 1;
         jListFrom = new JComboBox<>(new String[]{"a", "b", "c", "d", "e", "f"});
-        jListFrom.setPreferredSize(new Dimension(60, 25));
+        jListFrom.setPreferredSize(new Dimension(120, 35));
+        jListFrom.setFont(new Font("SansSerif", Font.PLAIN, 14));
         panel.add(jListFrom, gbc);
         
         gbc.gridx = 2;
         panel.add(new JLabel("→"), gbc);
         gbc.gridx = 3;
         jListTo = new JComboBox<>(new String[]{"a", "b", "c", "d", "e", "f"});
-        jListTo.setPreferredSize(new Dimension(60, 25));
+        jListTo.setPreferredSize(new Dimension(120, 35));
+        jListTo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         panel.add(jListTo, gbc);
         
         gbc.gridx = 4;
         panel.add(new JLabel("🚌"), gbc);
         gbc.gridx = 5;
         jListTransportType = new JComboBox<>(new String[]{"any", "bus", "car", "bike", "tram"});
-        jListTransportType.setPreferredSize(new Dimension(70, 25));
+        jListTransportType.setPreferredSize(new Dimension(140, 35));
+        jListTransportType.setFont(new Font("SansSerif", Font.PLAIN, 14));
         panel.add(jListTransportType, gbc);
         
         // Ligne 2: Heure, Critère, Bouton
@@ -251,7 +260,8 @@ public class TravellerGui extends JFrame {
         panel.add(new JLabel("⏰"), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2;
         sliderTimeDeparture = new JSlider(6, 22, 9);
-        sliderTimeDeparture.setPreferredSize(new Dimension(120, 25));
+        sliderTimeDeparture.setPreferredSize(new Dimension(180, 35));
+        sliderTimeDeparture.setFont(new Font("SansSerif", Font.PLAIN, 12));
         lblPrice = new JLabel("09:00");
         sliderTimeDeparture.addChangeListener(e -> {
             int value = sliderTimeDeparture.getValue();
@@ -266,7 +276,8 @@ public class TravellerGui extends JFrame {
         panel.add(new JLabel("⚖️"), gbc);
         gbc.gridx = 5;
         jListCriteria = new JComboBox<>(new String[]{"cost", "duration", "confort", "duration-cost"});
-        jListCriteria.setPreferredSize(new Dimension(80, 25));
+        jListCriteria.setPreferredSize(new Dimension(160, 35));
+        jListCriteria.setFont(new Font("SansSerif", Font.PLAIN, 14));
         panel.add(jListCriteria, gbc);
         
         // Ligne 3: Météo et bouton recherche
@@ -277,7 +288,8 @@ public class TravellerGui extends JFrame {
         
         gbc.gridx = 4; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.EAST;
         JButton searchButton = new JButton("🔍 Rechercher");
-        searchButton.setPreferredSize(new Dimension(120, 30));
+        searchButton.setPreferredSize(new Dimension(140, 40));
+        searchButton.setFont(new Font("SansSerif", Font.BOLD, 14));
         searchButton.addActionListener(e -> performSearch());
         panel.add(searchButton, gbc);
         
@@ -299,19 +311,30 @@ public class TravellerGui extends JFrame {
         tripsList.setFont(new Font("SansSerif", Font.PLAIN, 12));
         
         JScrollPane scrollPane = new JScrollPane(tripsList);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("📋 Trajets réservés"));
+        scrollPane.setBorder(BorderFactory.createTitledBorder("📋 Mes trajets réservés"));
         panel.add(scrollPane, BorderLayout.CENTER);
         
-        // Panel de boutons
+        // Panel de boutons (seulement détails)
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton cancelButton = new JButton("❌ Annuler le trajet sélectionné");
-        cancelButton.addActionListener(e -> cancelSelectedTrip());
-        
-        JButton detailsButton = new JButton("📄 Détails du trajet");
+        JButton detailsButton = new JButton("📄 Voir les détails");
+        detailsButton.setPreferredSize(new Dimension(160, 40));
+        detailsButton.setFont(new Font("SansSerif", Font.BOLD, 14));
         detailsButton.addActionListener(e -> showTripDetails());
         
         buttonPanel.add(detailsButton);
-        buttonPanel.add(cancelButton);
+        
+        // Message informatif
+        JLabel infoLabel = new JLabel("<html><div style='text-align: center; color: #666;'>" +
+            "� Vos trajets réservés s'affichent ici après confirmation.<br>" +
+            "Sélectionnez un trajet pour voir ses détails." +
+            "</div></html>");
+        infoLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(infoLabel, BorderLayout.CENTER);
+        topPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        panel.add(topPanel, BorderLayout.SOUTH);
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
         return panel;
@@ -354,37 +377,6 @@ public class TravellerGui extends JFrame {
     }
 
     /**
-     * Annule le trajet sélectionné
-     */
-    private void cancelSelectedTrip() {
-        int selectedIndex = tripsList.getSelectedIndex();
-        if (selectedIndex == -1) {
-            JOptionPane.showMessageDialog(this, 
-                "Veuillez sélectionner un trajet à annuler.", 
-                "Aucune sélection", 
-                JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        
-        String selectedTrip = tripsListModel.getElementAt(selectedIndex);
-        
-        int confirmation = JOptionPane.showConfirmDialog(this,
-            "Êtes-vous sûr de vouloir annuler ce trajet?\n\n" + selectedTrip,
-            "Confirmation d'annulation",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE);
-        
-        if (confirmation == JOptionPane.YES_OPTION) {
-            tripsListModel.removeElementAt(selectedIndex);
-            bookedTrips.remove(selectedIndex);
-            JOptionPane.showMessageDialog(this, 
-                "✅ Trajet annulé avec succès!", 
-                "Annulation confirmée", 
-                JOptionPane.INFORMATION_MESSAGE);
-        }
-    }
-
-    /**
      * Affiche les détails du trajet sélectionné
      */
     private void showTripDetails() {
@@ -393,14 +385,23 @@ public class TravellerGui extends JFrame {
             JOptionPane.showMessageDialog(this, 
                 "Veuillez sélectionner un trajet pour voir ses détails.", 
                 "Aucune sélection", 
-                JOptionPane.WARNING_MESSAGE);
+                JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         
         String selectedTrip = tripsListModel.getElementAt(selectedIndex);
+        
+        // Créer un message plus détaillé et formaté
+        StringBuilder detailsMessage = new StringBuilder();
+        detailsMessage.append("🚀 DÉTAILS DE VOTRE TRAJET RÉSERVÉ\n");
+        detailsMessage.append("═".repeat(40)).append("\n\n");
+        detailsMessage.append("📋 ").append(selectedTrip).append("\n\n");
+        detailsMessage.append("✅ Status: CONFIRMÉ\n");
+        detailsMessage.append("🎫 Réservation enregistrée avec succès\n");
+        
         JOptionPane.showMessageDialog(this, 
-            "📄 Détails du trajet:\n\n" + selectedTrip, 
-            "Informations détaillées", 
+            detailsMessage.toString(), 
+            "Détails du trajet réservé", 
             JOptionPane.INFORMATION_MESSAGE);
     }
 
@@ -425,7 +426,9 @@ public class TravellerGui extends JFrame {
                 System.out.println("DEBUG: Nombre de trajets dans la liste: " + tripsListModel.getSize());
                 
                 JOptionPane.showMessageDialog(this, 
-                    "✅ Trajet réservé avec succès!\n\nVous pouvez le voir dans l'onglet 'Mes trajets'", 
+                    "✅ Trajet réservé avec succès!\n\n" +
+                    "Votre réservation est confirmée et enregistrée.\n" +
+                    "Consultez l'onglet 'Mes trajets' pour voir tous vos trajets réservés.", 
                     "Réservation confirmée", 
                     JOptionPane.INFORMATION_MESSAGE);
                 
@@ -434,6 +437,53 @@ public class TravellerGui extends JFrame {
                 
                 // Nettoyer la zone de recherche
                 searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été ajouté à vos réservations.");
+                
+                // Forcer le rafraîchissement de la liste
+                tripsList.revalidate();
+                tripsList.repaint();
+                
+            } else {
+                searchResultsArea.append("\n❌ Réservation annulée par l'utilisateur.");
+            }
+        });
+    }
+
+    /**
+     * Ajoute un trajet avec gestion complète des stocks
+     */
+    public void addBookedTripWithConfirmation(data.ComposedJourney journey, String tripDetails, String fullDetails) {
+        SwingUtilities.invokeLater(() -> {
+            int confirmation = JOptionPane.showConfirmDialog(this,
+                "Confirmer la réservation de ce trajet?\n\n" + fullDetails,
+                "Confirmation de réservation",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+            
+            if (confirmation == JOptionPane.YES_OPTION) {
+                // Réserver les places dans les agences
+                myAgent.bookJourneyPlaces(journey);
+                
+                // Ajouter à nos listes locales
+                bookedTrips.add(tripDetails);
+                bookedJourneys.add(journey);
+                tripsListModel.addElement(tripDetails);
+                
+                System.out.println("DEBUG: Trajet avec stock ajouté - " + tripDetails);
+                System.out.println("DEBUG: Stock géré pour " + journey.getJourneys().size() + " segments");
+                
+                JOptionPane.showMessageDialog(this, 
+                    "✅ Trajet réservé avec succès!\n\n" +
+                    "Les places ont été réservées auprès des agences.\n" +
+                    "Votre réservation est confirmée et enregistrée.\n" +
+                    "Consultez l'onglet 'Mes trajets' pour voir tous vos trajets réservés.", 
+                    "Réservation confirmée", 
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                // Basculer vers l'onglet "Mes trajets"
+                tabbedPane.setSelectedIndex(1);
+                
+                // Nettoyer la zone de recherche
+                searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été ajouté à vos réservations avec gestion des stocks.");
                 
                 // Forcer le rafraîchissement de la liste
                 tripsList.revalidate();
@@ -472,6 +522,8 @@ public class TravellerGui extends JFrame {
         
         jListCity = new JComboBox<>(new String[]{"Lille", "Paris", "Lyon", "Marseille", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier", "Bordeaux"});
         jListCity.setSelectedItem("Lille");
+        jListCity.setPreferredSize(new Dimension(150, 35));
+        jListCity.setFont(new Font("SansSerif", Font.PLAIN, 14));
         jListCity.addActionListener(e -> {
             String selectedCity = (String) jListCity.getSelectedItem();
             WeatherManager.getInstance().setCurrentCity(selectedCity);
@@ -500,18 +552,23 @@ public class TravellerGui extends JFrame {
         
         JPanel requestInputPanel = new JPanel(new BorderLayout(5, 5));
         requestField = new JTextField();
-        requestField.setPreferredSize(new Dimension(400, 30));
+        requestField.setPreferredSize(new Dimension(500, 40));
+        requestField.setFont(new Font("SansSerif", Font.PLAIN, 14));
         requestField.addActionListener(e -> processNaturalLanguageRequest());
         requestInputPanel.add(requestField, BorderLayout.CENTER);
         
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         
         JButton exampleButton = new JButton("💡 Examples");
+        exampleButton.setPreferredSize(new Dimension(120, 40));
+        exampleButton.setFont(new Font("SansSerif", Font.PLAIN, 12));
         exampleButton.setToolTipText("Show example requests");
         exampleButton.addActionListener(e -> showExampleRequests());
         buttonPanel.add(exampleButton);
         
         JButton processButton = new JButton("🤖 Process Request with AI");
+        processButton.setPreferredSize(new Dimension(200, 40));
+        processButton.setFont(new Font("SansSerif", Font.BOLD, 12));
         processButton.addActionListener(e -> processNaturalLanguageRequest());
         buttonPanel.add(processButton);
         
