@@ -84,11 +84,14 @@ public class TravellerAgent extends GuiAgent {
         // Initialize text enhancement service
         textEnhancer = TextEnhancementService.getInstance();
         
-        // Enhanced welcome message
-        String welcomeMsg = "Hello! AgentAcheteurCN " + this.getLocalName() + " est pret.";
-        String enhancedWelcome = textEnhancer.enhanceMessage(welcomeMsg, TextEnhancementService.MessageType.GENERAL);
-        window.println(enhancedWelcome);
-        window.println(textEnhancer.getServiceStatus());
+        // Message de bienvenue simplifié (pas de logs techniques)
+        window.println("🎉 Bienvenue dans votre assistant de voyage !");
+        window.println("Utilisez le formulaire ci-dessus pour rechercher un trajet.");
+        
+        // Les logs techniques vont dans la zone debug cachée
+        if (textEnhancer.isAvailable()) {
+            window.printDebug("Service d'amélioration de texte activé");
+        }
         
         window.setVisible(true);
 
@@ -98,10 +101,9 @@ public class TravellerAgent extends GuiAgent {
         topic = AgentServicesTools.generateTopicAID(this, "TRAFFIC NEWS");
         //ecoute des messages radio
         addBehaviour(new ReceiverBehaviour(this, -1, MessageTemplate.MatchTopic(topic), true, (a, m) -> {
-            println("Message recu sur le topic " + topic.getLocalName() + ". Contenu " + m.getContent()
-                    + " emis par :  " + m.getSender().getLocalName());
+            // Les alertes de trafic sont affichées à l'utilisateur
+            window.println("🚨 Info trafic: " + m.getContent());
         }));
-
     }
 
 
@@ -117,13 +119,15 @@ public class TravellerAgent extends GuiAgent {
             @Override
             public void onRegister(DFAgentDescription dfd) {
                 vendeurs.add(dfd.getName());
-                window.println(dfd.getName().getLocalName() + " s'est inscrit en tant qu'agence : " + model.getAllServices().get(0));
+                // Envoyer les logs d'enregistrement des agences dans la zone debug
+                window.printDebug("Agence connectée: " + dfd.getName().getLocalName());
             }
 
             @Override
             public void onDeregister(DFAgentDescription dfd) {
                 vendeurs.remove(dfd.getName());
-                window.println(dfd.getName().getLocalName() + " s'est desinscrit de  : " + model.getAllServices().get(0));
+                // Envoyer les logs de désenregistrement des agences dans la zone debug
+                window.printDebug("Agence déconnectée: " + dfd.getName().getLocalName());
             }
 
         });
@@ -212,9 +216,12 @@ public class TravellerAgent extends GuiAgent {
         }
         myJourney = journeys.getFirst();
         
-        // Affichage naturel du voyage sélectionné
+        // Affichage naturel du voyage sélectionné et demande de confirmation
         String naturalMessage = formatJourneyNaturally(myJourney);
-        println(naturalMessage);
+        String tripSummary = createTripSummary(myJourney);
+        
+        // Utiliser la nouvelle méthode avec confirmation de l'interface
+        window.addBookedTripWithConfirmation(tripSummary, naturalMessage);
     }
 
     /**
@@ -241,11 +248,10 @@ public class TravellerAgent extends GuiAgent {
                 transportType = "any";
             }
             
-            // Log the travel request with transport type
-            String enhancedMsg = String.format("Travel request - From: %s, To: %s, Time: %d, Criteria: %s, Transport: %s", 
+            // Log technique dans la zone debug
+            String logMsg = String.format("Requête de voyage - De: %s, Vers: %s, Heure: %d, Critère: %s, Transport: %s", 
                     departure, arrival, time, criteria, transportType);
-            String processedMsg = textEnhancer.enhanceMessage(enhancedMsg, TextEnhancementService.MessageType.GENERAL);
-            window.println(processedMsg);
+            window.printDebug(logMsg);
             
             addBehaviour(new ContractNetAchat(this, new ACLMessage(ACLMessage.CFP),
                     departure, arrival, time, criteria, transportType));
@@ -311,6 +317,30 @@ public class TravellerAgent extends GuiAgent {
         this.catalogs = catalogs;
     }
 
+
+    /**
+     * Crée un résumé court du trajet pour la liste des trajets réservés
+     */
+    private String createTripSummary(ComposedJourney journey) {
+        if (journey == null || journey.getJourneys() == null || journey.getJourneys().isEmpty()) {
+            return "Trajet non valide";
+        }
+        
+        String fromStation = journey.getJourneys().get(0).getStart();
+        String toStation = journey.getJourneys().get(journey.getJourneys().size()-1).getStop();
+        int duration = (int)journey.getDuration();
+        double cost = journey.getCost();
+        
+        // Obtenir les types de transport utilisés
+        String transports = journey.getJourneys().stream()
+            .map(j -> getTransportEmoji(j.getMeans()).split(" ")[1]) // Enlever l'emoji
+            .distinct()
+            .reduce((t1, t2) -> t1 + "+" + t2)
+            .orElse("Transport");
+        
+        return String.format("%s → %s | %s | %d min | %.2f€", 
+                fromStation, toStation, transports, duration, cost);
+    }
 
     /**
      * Formate un voyage de manière naturelle et conviviale

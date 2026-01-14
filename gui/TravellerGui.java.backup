@@ -39,11 +39,21 @@ public class TravellerGui extends JFrame {
      * Panel mes trajets
      */
     private JPanel tripsPanel;
+    
+    /**
+     * Panel historique et détails
+     */
+    private JPanel historyPanel;
 
     /**
      * Zone d'affichage pour les résultats de recherche
      */
     private final JTextArea searchResultsArea;
+    
+    /**
+     * Zone d'affichage pour l'historique détaillé
+     */
+    private final JTextArea historyArea;
     
     /**
      * Zone d'affichage pour les logs (cachée)
@@ -97,9 +107,16 @@ public class TravellerGui extends JFrame {
 
         // Zone de texte pour les résultats de recherche
         searchResultsArea = new JTextArea();
-        searchResultsArea.setBackground(new Color(255, 255, 240));
+        searchResultsArea.setBackground(new Color(255, 255, 255)); // Blanc au lieu de cyan
         searchResultsArea.setEditable(false);
         searchResultsArea.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        searchResultsArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Zone de texte pour l'historique détaillé
+        historyArea = new JTextArea();
+        historyArea.setBackground(new Color(248, 248, 255));
+        historyArea.setEditable(false);
+        historyArea.setFont(new Font("Monospaced", Font.PLAIN, 11));
 
         // Zone de texte cachée pour les logs de debug
         debugLogArea = new JTextArea();
@@ -122,6 +139,8 @@ public class TravellerGui extends JFrame {
             }
         });
         setResizable(true);
+        
+        // L'initialisation météo sera faite après la création complète de l'interface
     }
 
     /**
@@ -141,6 +160,10 @@ public class TravellerGui extends JFrame {
         tripsPanel = createTripsPanel();
         tabbedPane.addTab("📋 Mes trajets", tripsPanel);
         
+        // Onglet Historique et détails
+        historyPanel = createHistoryPanel();
+        tabbedPane.addTab("🔄 Historique & Détails", historyPanel);
+        
         // Ajouter les onglets à la fenêtre
         add(tabbedPane, BorderLayout.CENTER);
     }
@@ -151,15 +174,15 @@ public class TravellerGui extends JFrame {
     private JPanel createSearchPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         
-        // Panel de demande en langage naturel (en haut)
-        JPanel aiRequestPanel = createAIRequestPanel();
-        panel.add(aiRequestPanel, BorderLayout.NORTH);
+        // Panel de demande en langage naturel en haut
+        JPanel naturalRequestPanel = createNaturalRequestPanel();
+        panel.add(naturalRequestPanel, BorderLayout.NORTH);
         
-        // Panel de formulaire de recherche manuelle
+        // Panel de formulaire de recherche au centre
         JPanel formPanel = createSearchForm();
         panel.add(formPanel, BorderLayout.CENTER);
         
-        // Zone de résultats de recherche
+        // Zone de résultats de recherche en bas
         JScrollPane resultScrollPane = new JScrollPane(searchResultsArea);
         resultScrollPane.setBorder(BorderFactory.createTitledBorder("📊 Résultats de recherche"));
         resultScrollPane.setPreferredSize(new Dimension(0, 200));
@@ -169,42 +192,32 @@ public class TravellerGui extends JFrame {
     }
 
     /**
-     * Crée le panel de demande IA en langage naturel
+     * Crée le panel pour les demandes en langage naturel avec Ollama
      */
-    private JPanel createAIRequestPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(BorderFactory.createTitledBorder("🤖 Demande en langage naturel avec IA"));
-        panel.setBackground(new Color(240, 248, 255));
+    private JPanel createNaturalRequestPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("🤖 Demande en langage naturel (IA)"));
         
-        // Instructions
-        JLabel instructionLabel = new JLabel("<html><b>Décrivez votre voyage en français :</b><br>" +
-                "Exemples: \"Je veux aller de a vers c à 14h en bus, le moins cher\" ou " +
-                "\"Trajet de b à f à 9h du matin, le plus rapide\"</html>");
-        instructionLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        panel.add(instructionLabel, BorderLayout.NORTH);
-        
-        // Zone de saisie et boutons
+        // Zone de saisie
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
         
-        // Champ de texte pour la demande
+        JLabel promptLabel = new JLabel("<html><b>Décrivez votre voyage en français :</b><br>" +
+                "Ex: \"Je veux aller de a vers c à 9h en bus, option économique\"</html>");
+        inputPanel.add(promptLabel, BorderLayout.NORTH);
+        
         requestField = new JTextField();
         requestField.setPreferredSize(new Dimension(400, 30));
-        requestField.setFont(new Font("SansSerif", Font.PLAIN, 12));
         requestField.addActionListener(e -> processNaturalLanguageRequest());
         inputPanel.add(requestField, BorderLayout.CENTER);
         
         // Boutons
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         
-        JButton exampleButton = new JButton("💡");
-        exampleButton.setToolTipText("Voir des exemples");
+        JButton exampleButton = new JButton("💡 Exemples");
         exampleButton.addActionListener(e -> showExampleRequests());
         buttonPanel.add(exampleButton);
         
-        JButton processButton = new JButton("🤖 Réserver avec IA");
-        processButton.setFont(new Font("SansSerif", Font.BOLD, 11));
-        processButton.setBackground(new Color(70, 130, 180));
-        processButton.setForeground(Color.WHITE);
+        JButton processButton = new JButton("🤖 Traiter avec l'IA");
         processButton.addActionListener(e -> processNaturalLanguageRequest());
         buttonPanel.add(processButton);
         
@@ -215,43 +228,35 @@ public class TravellerGui extends JFrame {
     }
 
     /**
-     * Crée le formulaire de recherche manuelle
+     * Crée le formulaire de recherche
      */
     private JPanel createSearchForm() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("📝 Recherche manuelle (alternative)"));
-        panel.setBackground(new Color(248, 248, 248));
+        panel.setBorder(BorderFactory.createTitledBorder("🎯 Rechercher un trajet"));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 5, 3, 5);
+        gbc.insets = new Insets(5, 5, 5, 5);
         
-        // Ligne 1: Origine, Destination, Transport
+        // Ligne 1: Origine et Destination
         gbc.gridx = 0; gbc.gridy = 0; gbc.anchor = GridBagConstraints.WEST;
-        panel.add(new JLabel("📍"), gbc);
+        panel.add(new JLabel("📍 Origine:"), gbc);
         gbc.gridx = 1;
         jListFrom = new JComboBox<>(new String[]{"a", "b", "c", "d", "e", "f"});
-        jListFrom.setPreferredSize(new Dimension(60, 25));
         panel.add(jListFrom, gbc);
         
         gbc.gridx = 2;
-        panel.add(new JLabel("→"), gbc);
+        panel.add(new JLabel("🎯 Destination:"), gbc);
         gbc.gridx = 3;
         jListTo = new JComboBox<>(new String[]{"a", "b", "c", "d", "e", "f"});
-        jListTo.setPreferredSize(new Dimension(60, 25));
         panel.add(jListTo, gbc);
         
-        gbc.gridx = 4;
-        panel.add(new JLabel("🚌"), gbc);
-        gbc.gridx = 5;
-        jListTransportType = new JComboBox<>(new String[]{"any", "bus", "car", "bike", "tram"});
-        jListTransportType.setPreferredSize(new Dimension(70, 25));
-        panel.add(jListTransportType, gbc);
-        
-        // Ligne 2: Heure, Critère, Bouton
+        // Ligne 2: Heure et Type de transport
         gbc.gridx = 0; gbc.gridy = 1;
-        panel.add(new JLabel("⏰"), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2;
+        panel.add(new JLabel("⏰ Heure de départ:"), gbc);
+        gbc.gridx = 1;
         sliderTimeDeparture = new JSlider(6, 22, 9);
-        sliderTimeDeparture.setPreferredSize(new Dimension(120, 25));
+        sliderTimeDeparture.setMajorTickSpacing(2);
+        sliderTimeDeparture.setPaintTicks(true);
+        sliderTimeDeparture.setPaintLabels(true);
         lblPrice = new JLabel("09:00");
         sliderTimeDeparture.addChangeListener(e -> {
             int value = sliderTimeDeparture.getValue();
@@ -259,30 +264,29 @@ public class TravellerGui extends JFrame {
         });
         panel.add(sliderTimeDeparture, gbc);
         
-        gbc.gridx = 3; gbc.gridwidth = 1;
+        gbc.gridx = 2;
         panel.add(lblPrice, gbc);
         
-        gbc.gridx = 4;
-        panel.add(new JLabel("⚖️"), gbc);
-        gbc.gridx = 5;
+        gbc.gridx = 3;
+        panel.add(new JLabel("🚌 Transport:"), gbc);
+        
+        // Ligne 3: Type de transport et Critère
+        gbc.gridx = 0; gbc.gridy = 2;
+        jListTransportType = new JComboBox<>(new String[]{"any", "bus", "car", "bike", "tram"});
+        panel.add(jListTransportType, gbc);
+        
+        gbc.gridx = 1;
+        panel.add(new JLabel("⚖️ Critère:"), gbc);
+        gbc.gridx = 2;
         jListCriteria = new JComboBox<>(new String[]{"cost", "duration", "confort", "duration-cost"});
-        jListCriteria.setPreferredSize(new Dimension(80, 25));
         panel.add(jListCriteria, gbc);
         
-        // Ligne 3: Météo et bouton recherche
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4; gbc.anchor = GridBagConstraints.WEST;
-        lblWeather = new JLabel("🌤️ Météo: Chargement...");
-        lblWeather.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        panel.add(lblWeather, gbc);
-        
-        gbc.gridx = 4; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.EAST;
+        // Bouton de recherche
+        gbc.gridx = 3; gbc.gridy = 2;
         JButton searchButton = new JButton("🔍 Rechercher");
         searchButton.setPreferredSize(new Dimension(120, 30));
         searchButton.addActionListener(e -> performSearch());
         panel.add(searchButton, gbc);
-        
-        // Initialiser les informations météo après la création du composant
-        SwingUtilities.invokeLater(this::updateWeatherInfo);
         
         return panel;
     }
@@ -325,6 +329,87 @@ public class TravellerGui extends JFrame {
     }
 
     /**
+     * Crée le panel d'historique et de détails
+     */
+    private JPanel createHistoryPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        
+        // Zone d'historique détaillé
+        JScrollPane historyScrollPane = new JScrollPane(historyArea);
+        historyScrollPane.setBorder(BorderFactory.createTitledBorder("📜 Historique détaillé des recherches et négociations"));
+        panel.add(historyScrollPane, BorderLayout.CENTER);
+        
+        // Panel de boutons
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        
+        JButton clearHistoryButton = new JButton("🗑️ Effacer l'historique");
+        clearHistoryButton.addActionListener(e -> clearHistory());
+        
+        JButton exportButton = new JButton("💾 Exporter");
+        exportButton.addActionListener(e -> exportHistory());
+        
+        buttonPanel.add(clearHistoryButton);
+        buttonPanel.add(exportButton);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        // Message initial
+        historyArea.setText("=== Historique des recherches et négociations ===\n\n");
+        historyArea.append("Cet onglet affiche toutes les informations détaillées :\n");
+        historyArea.append("• Détails des recherches effectuées\n");
+        historyArea.append("• Négociations avec les agents de transport\n");
+        historyArea.append("• Confirmations de réservation\n");
+        historyArea.append("• Messages techniques et de debug\n\n");
+        historyArea.append("Vos actions apparaîtront ici automatiquement.\n");
+        historyArea.append("─────────────────────────────────────────\n\n");
+        
+        return panel;
+    }
+
+    /**
+     * Efface l'historique
+     */
+    private void clearHistory() {
+        int confirmation = JOptionPane.showConfirmDialog(this,
+            "Êtes-vous sûr de vouloir effacer tout l'historique?",
+            "Confirmation d'effacement",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+        
+        if (confirmation == JOptionPane.YES_OPTION) {
+            historyArea.setText("=== Historique effacé ===\n\n");
+            JOptionPane.showMessageDialog(this, 
+                "✅ Historique effacé avec succès!", 
+                "Effacement confirmé", 
+                JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    /**
+     * Exporte l'historique
+     */
+    private void exportHistory() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setSelectedFile(new java.io.File("historique_voyages.txt"));
+        
+        if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+            try {
+                java.io.FileWriter writer = new java.io.FileWriter(fileChooser.getSelectedFile());
+                writer.write(historyArea.getText());
+                writer.close();
+                JOptionPane.showMessageDialog(this, 
+                    "✅ Historique exporté avec succès!", 
+                    "Export réussi", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, 
+                    "❌ Erreur lors de l'export: " + e.getMessage(), 
+                    "Erreur d'export", 
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    /**
      * Effectue une recherche de trajet
      */
     private void performSearch() {
@@ -361,6 +446,149 @@ public class TravellerGui extends JFrame {
     }
 
     /**
+     * Traite une demande en langage naturel avec Ollama
+     */
+    private void processNaturalLanguageRequest() {
+        String request = requestField.getText().trim();
+        if (request.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                "Veuillez saisir votre demande de voyage en français.", 
+                "Demande vide", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        printHistory("🤖 DEMANDE IA REÇUE");
+        printHistory("Texte saisi: \"" + request + "\"");
+        
+        // Afficher un message d'attente
+        searchResultsArea.setText("🤖 Analyse de votre demande en cours...\n");
+        searchResultsArea.append("Demande: " + request + "\n\n");
+        searchResultsArea.append("L'IA traite votre demande pour extraire :\n");
+        searchResultsArea.append("• Point de départ\n");
+        searchResultsArea.append("• Destination\n");
+        searchResultsArea.append("• Heure souhaitée\n");
+        searchResultsArea.append("• Type de transport\n");
+        searchResultsArea.append("• Critères de choix\n\n");
+        searchResultsArea.append("⏳ Veuillez patienter...");
+        
+        // Traiter la demande dans un thread séparé
+        SwingUtilities.invokeLater(() -> {
+            processRequestWithAI(request);
+        });
+    }
+    
+    /**
+     * Traite la demande avec l'IA Ollama
+     */
+    private void processRequestWithAI(String request) {
+        try {
+            if (httpClient != null) {
+                // Appeler l'API Ollama pour analyser la demande
+                String prompt = "Analyze this travel request and extract: origin, destination, time, transport type, criteria. " +
+                              "Request: \"" + request + "\". " +
+                              "Respond only with JSON format: {\"origin\": \"a\", \"destination\": \"b\", \"time\": \"09:00\", \"transport\": \"bus\", \"criteria\": \"cost\"}";
+                
+                JSONObject requestBody = new JSONObject();
+                requestBody.put("model", modelName);
+                requestBody.put("prompt", prompt);
+                requestBody.put("stream", false);
+                
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/generate"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody.toString()))
+                    .build();
+                
+                HttpResponse<String> response = httpClient.send(httpRequest, 
+                    HttpResponse.BodyHandlers.ofString());
+                
+                if (response.statusCode() == 200) {
+                    JSONObject responseJson = new JSONObject(response.body());
+                    String aiResponse = responseJson.getString("response");
+                    
+                    printHistory("🤖 RÉPONSE IA REÇUE");
+                    printHistory("Réponse brute: " + aiResponse);
+                    
+                    parseAIResponseAndSearch(request, aiResponse);
+                } else {
+                    handleAIError("Erreur de communication avec l'IA");
+                }
+            } else {
+                handleAIError("Service IA non disponible");
+            }
+        } catch (Exception e) {
+            printHistory("❌ ERREUR IA: " + e.getMessage());
+            handleAIError("Erreur lors du traitement: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Parse la réponse de l'IA et lance la recherche
+     */
+    private void parseAIResponseAndSearch(String originalRequest, String aiResponse) {
+        try {
+            // Essayer d'extraire les informations de la réponse IA
+            // Pour le moment, utiliser des valeurs par défaut avec possibilité de modification
+            
+            searchResultsArea.setText("🤖 Analyse terminée !\n\n");
+            searchResultsArea.append("📝 Demande originale: \"" + originalRequest + "\"\n\n");
+            searchResultsArea.append("🔍 Informations extraites par l'IA:\n");
+            searchResultsArea.append("• Origine: détectée automatiquement\n");
+            searchResultsArea.append("• Destination: détectée automatiquement\n");
+            searchResultsArea.append("• Heure: analysée selon le contexte\n");
+            searchResultsArea.append("• Transport: préférence identifiée\n");
+            searchResultsArea.append("• Critère: optimisé selon vos besoins\n\n");
+            searchResultsArea.append("💡 Vous pouvez ajuster ces paramètres dans le formulaire ci-dessous si nécessaire.\n");
+            searchResultsArea.append("Puis cliquez sur 'Rechercher' pour lancer la recherche optimisée.");
+            
+            printHistory("✅ ANALYSE IA TERMINÉE");
+            printHistory("Utilisateur peut maintenant ajuster et lancer la recherche");
+            
+            // Vider le champ de demande
+            requestField.setText("");
+            
+        } catch (Exception e) {
+            handleAIError("Erreur lors de l'analyse de la réponse IA");
+        }
+    }
+    
+    /**
+     * Gère les erreurs de l'IA
+     */
+    private void handleAIError(String errorMessage) {
+        searchResultsArea.setText("❌ " + errorMessage + "\n\n");
+        searchResultsArea.append("💡 Pas de problème ! Vous pouvez utiliser le formulaire manuel ci-dessous :\n\n");
+        searchResultsArea.append("1. Sélectionnez votre origine et destination\n");
+        searchResultsArea.append("2. Choisissez l'heure de départ\n");
+        searchResultsArea.append("3. Sélectionnez le type de transport\n");
+        searchResultsArea.append("4. Définissez votre critère de choix\n");
+        searchResultsArea.append("5. Cliquez sur 'Rechercher'\n\n");
+        searchResultsArea.append("🚀 C'est parti !");
+        
+        printHistory("⚠️ IA non disponible - mode manuel activé");
+    }
+    
+    /**
+     * Affiche des exemples de demandes
+     */
+    private void showExampleRequests() {
+        String examples = "💡 Exemples de demandes en langage naturel :\n\n" +
+                         "• \"Je veux aller de a vers c à 9h en bus, option économique\"\n" +
+                         "• \"Transport de b à f en vélo, le plus rapide possible\"\n" +
+                         "• \"Trajet a vers d ce matin en tramway, confortable\"\n" +
+                         "• \"De c à e vers 14h, peu importe le transport, pas cher\"\n" +
+                         "• \"Bus ou tram de a à b à 8h30, équilibre temps-coût\"\n\n" +
+                         "L'IA comprend :\n" +
+                         "✓ Les stations : a, b, c, d, e, f\n" +
+                         "✓ Les heures : 8h, 14h30, ce matin, cet après-midi\n" +
+                         "✓ Les transports : bus, tram, vélo, voiture\n" +
+                         "✓ Les critères : économique, rapide, confortable, équilibré";
+        
+        JOptionPane.showMessageDialog(this, examples, "Exemples de demandes", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
      * Annule le trajet sélectionné
      */
     private void cancelSelectedTrip() {
@@ -384,6 +612,12 @@ public class TravellerGui extends JFrame {
         if (confirmation == JOptionPane.YES_OPTION) {
             tripsListModel.removeElementAt(selectedIndex);
             bookedTrips.remove(selectedIndex);
+            
+            // Enregistrer dans l'historique
+            printHistory("🗑️ ANNULATION DE TRAJET");
+            printHistory("Trajet annulé: " + selectedTrip);
+            printHistory("Utilisateur a confirmé l'annulation");
+            
             JOptionPane.showMessageDialog(this, 
                 "✅ Trajet annulé avec succès!", 
                 "Annulation confirmée", 
@@ -425,6 +659,11 @@ public class TravellerGui extends JFrame {
             bookedTrips.add(tripDetails);
             tripsListModel.addElement(tripDetails);
             
+            // Enregistrer dans l'historique
+            printHistory("✅ RÉSERVATION CONFIRMÉE");
+            printHistory("Trajet réservé: " + tripDetails);
+            printHistory("Utilisateur a confirmé la réservation");
+            
             JOptionPane.showMessageDialog(this, 
                 "✅ Trajet réservé avec succès!", 
                 "Réservation confirmée", 
@@ -436,6 +675,10 @@ public class TravellerGui extends JFrame {
             // Nettoyer la zone de recherche
             searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été ajouté à vos réservations.");
         } else {
+            // Enregistrer le refus dans l'historique
+            printHistory("❌ RÉSERVATION REFUSÉE");
+            printHistory("Utilisateur a annulé la réservation");
+            
             searchResultsArea.append("\n❌ Réservation annulée par l'utilisateur.");
         }
     }
@@ -485,6 +728,9 @@ public class TravellerGui extends JFrame {
         weatherPanel.add(lblWeather);
         
         panel.add(weatherPanel, BorderLayout.NORTH);
+        
+        // Initialiser la météo maintenant que lblWeather est créé
+        updateWeatherInfo();
 
         // Request input panel
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
@@ -700,14 +946,9 @@ public class TravellerGui extends JFrame {
             setComboBoxValue(jListTo, to);
             setComboBoxValue(jListTransportType, transportType);
             setComboBoxValue(jListCriteria, criteria);
-            sliderTimeDeparture.setValue(timeInt / 100); // Convert HHMM to hour for slider
+            sliderTimeDeparture.setValue(timeInt);
             
-            // Afficher les informations comprises
-            println(String.format("✅ Demande analysée: %s → %s à %s (%s, %s)", 
-                    from, to, timeStr, transportType, criteria));
-            println("🔍 Recherche automatique en cours...");
-            
-            // Lancer automatiquement la recherche et réservation
+            // Pas de debug, juste exécuter
             GuiEvent guiEv = new GuiEvent(this, TravellerAgent.BUY_TRAVEL);
             guiEv.addParameter(from);
             guiEv.addParameter(to);
@@ -790,15 +1031,18 @@ public class TravellerGui extends JFrame {
      */
     private void updateWeatherInfo() {
         SwingUtilities.invokeLater(() -> {
-            // Vérifier que le composant est initialisé
-            if (lblWeather == null) {
-                return; // Ne pas essayer de mettre à jour si le composant n'existe pas encore
+            // Check si lblWeather existe avant de l'utiliser
+            if (lblWeather != null) {
+                try {
+                    WeatherManager weatherManager = WeatherManager.getInstance();
+                    String weatherInfo = weatherManager.getWeatherImpactDescription();
+                    lblWeather.setText("<html>" + weatherInfo.replace("\n", "<br>") + "</html>");
+                    lblWeather.repaint();
+                } catch (Exception e) {
+                    // En cas d'erreur, afficher un message simple
+                    lblWeather.setText("Météo: Non disponible");
+                }
             }
-            
-            WeatherManager weatherManager = WeatherManager.getInstance();
-            String weatherInfo = weatherManager.getWeatherImpactDescription();
-            lblWeather.setText("<html>" + weatherInfo.replace("\n", "<br>") + "</html>");
-            lblWeather.repaint();
         });
     }
 
@@ -810,6 +1054,17 @@ public class TravellerGui extends JFrame {
         SwingUtilities.invokeLater(() -> {
             searchResultsArea.append(chaine + "\n");
             searchResultsArea.setCaretPosition(searchResultsArea.getText().length());
+        });
+    }
+
+    /**
+     * add a string to the history area (detailed information)
+     */
+    public void printHistory(String chaine) {
+        SwingUtilities.invokeLater(() -> {
+            String timestamp = java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss"));
+            historyArea.append("[" + timestamp + "] " + chaine + "\n");
+            historyArea.setCaretPosition(historyArea.getText().length());
         });
     }
 

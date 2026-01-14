@@ -25,7 +25,13 @@ public class LaunchSimu {
      */
     public static void main(String[] args) {
 
-        logger.setLevel(Level.ALL);
+        // Réduire les logs pour une interface plus propre
+        logger.setLevel(Level.WARNING);
+        
+        // Réduire les logs JADE
+        Logger.getLogger("jade").setLevel(Level.WARNING);
+        Logger.getLogger("jade.core").setLevel(Level.WARNING);
+        
         Handler fh;
         try {
             fh = new FileHandler("./simuAgences.xml", false);
@@ -38,8 +44,8 @@ public class LaunchSimu {
 
         // allow to send arguments to the JADE launcher
         var pp = new ExtendedProperties();
-        // add the gui
-        pp.setProperty(Profile.GUI, "true");
+        // Interface JADE désactivée pour une expérience utilisateur plus propre
+        pp.setProperty(Profile.GUI, "false");
         // add the Topic Management Service
         pp.setProperty(Profile.SERVICES, "jade.core.messaging.TopicManagementService;jade.core.event.NotificationService");
 
