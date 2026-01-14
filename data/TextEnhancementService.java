@@ -47,7 +47,7 @@ public class TextEnhancementService {
     private void initializeOllama() {
         try {
             this.httpClient = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(10))
+                    .connectTimeout(Duration.ofSeconds(30))
                     .build();
             
             // Test connection and get available models
@@ -101,10 +101,15 @@ public class TextEnhancementService {
      * Enhance a message based on its type
      */
     public String enhanceMessage(String originalMessage, MessageType messageType) {
+        // Désactiver temporairement l'amélioration pour éviter les timeouts
         if (!ollamaAvailable || originalMessage == null || originalMessage.trim().isEmpty()) {
             return originalMessage;
         }
         
+        // Retourner directement le message original pour éviter les timeouts
+        return originalMessage;
+        
+        /*
         try {
             String systemPrompt = getSystemPrompt(messageType);
             String enhancedMessage = simpleChat(systemPrompt, originalMessage);
@@ -118,6 +123,7 @@ public class TextEnhancementService {
             System.err.println("Text enhancement failed: " + e.getMessage());
             return originalMessage;
         }
+        */
     }
     
     /**
@@ -202,7 +208,7 @@ public class TextEnhancementService {
                 .uri(URI.create(baseUrl + "/api/chat"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonRequest.toString()))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(60))
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

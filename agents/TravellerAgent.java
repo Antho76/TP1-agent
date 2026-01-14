@@ -158,7 +158,12 @@ public class TravellerAgent extends GuiAgent {
                 new ArrayList<>(), journeys);
 
         if (!result) {
-            printlnEnhanced("no journey found !!!", TextEnhancementService.MessageType.ERROR_MESSAGE);
+            println("😔 Aucun trajet trouvé !\n\n" +
+                   "💡 Suggestions :\n" +
+                   "• Essayez des horaires différents\n" +
+                   "• Vérifiez vos stations de départ et d'arrivée\n" +
+                   "• Considérez d'autres moyens de transport\n" +
+                   "• Modifiez vos critères de recherche");
             return;
         }
         
@@ -170,8 +175,11 @@ public class TravellerAgent extends GuiAgent {
             );
             
             if (journeys.isEmpty()) {
-                printlnEnhanced("No journey found with transport type: " + transportType, 
-                                TextEnhancementService.MessageType.ERROR_MESSAGE);
+                println(String.format("😔 Aucun trajet trouvé avec le transport '%s' !\n\n" +
+                       "💡 Essayez :\n" +
+                       "• 'any' pour voir tous les transports disponibles\n" +
+                       "• D'autres types : bus, car, bike, tram\n" +
+                       "• Des horaires différents", transportType));
                 return;
             }
         }
@@ -180,8 +188,11 @@ public class TravellerAgent extends GuiAgent {
         journeys.removeIf(j -> j.getJourneys().getFirst().getDepartureDate() - departure > delay);
         
         if (journeys.isEmpty()) {
-            printlnEnhanced("No journey found within time constraints!", 
-                            TextEnhancementService.MessageType.ERROR_MESSAGE);
+            println("⏰ Aucun trajet trouvé dans vos créneaux horaires !\n\n" +
+                   "💡 Solutions :\n" +
+                   "• Élargissez votre plage horaire\n" +
+                   "• Essayez un départ plus tôt ou plus tard\n" +
+                   "• Vérifiez les horaires de service des transports");
             return;
         }
         
@@ -201,11 +212,9 @@ public class TravellerAgent extends GuiAgent {
         }
         myJourney = journeys.getFirst();
         
-        // Enhanced journey selection with weather context
-        WeatherManager.WeatherCondition weatherCondition = WeatherManager.getInstance().analyzeWeatherConditions();
-        String journeyMsg = "I choose this journey : " + myJourney;
-        String enhancedJourneyMsg = textEnhancer.enhanceTravelProposal(journeyMsg, weatherCondition);
-        println(enhancedJourneyMsg);
+        // Affichage naturel du voyage sélectionné
+        String naturalMessage = formatJourneyNaturally(myJourney);
+        println(naturalMessage);
     }
 
     /**
@@ -302,6 +311,80 @@ public class TravellerAgent extends GuiAgent {
         this.catalogs = catalogs;
     }
 
+
+    /**
+     * Formate un voyage de manière naturelle et conviviale
+     */
+    private String formatJourneyNaturally(ComposedJourney journey) {
+        if (journey == null || journey.getJourneys() == null || journey.getJourneys().isEmpty()) {
+            return "😔 Désolé, aucun trajet n'a été trouvé pour votre demande.";
+        }
+
+        StringBuilder naturalMsg = new StringBuilder();
+        
+        // Message d'introduction
+        naturalMsg.append("🎯 Parfait ! J'ai trouvé le meilleur trajet pour vous :\n\n");
+        
+        // Informations générales du voyage
+        String fromStation = journey.getJourneys().get(0).getStart();
+        String toStation = journey.getJourneys().get(journey.getJourneys().size()-1).getStop();
+        
+        naturalMsg.append(String.format("📍 De %s à %s\n", fromStation, toStation));
+        naturalMsg.append(String.format("⏱️ Durée totale : %d minutes\n", (int)journey.getDuration()));
+        naturalMsg.append(String.format("💰 Coût total : %.2f€\n", journey.getCost()));
+        naturalMsg.append(String.format("⭐ Confort : %d/5\n\n", journey.getConfort()));
+        
+        // Détail des étapes
+        if (journey.getJourneys().size() == 1) {
+            var singleJourney = journey.getJourneys().get(0);
+            naturalMsg.append("🚌 Trajet direct :\n");
+            naturalMsg.append(String.format("   • %s de %s à %s\n", 
+                getTransportEmoji(singleJourney.getMeans()), 
+                singleJourney.getStart(), 
+                singleJourney.getStop()));
+            naturalMsg.append(String.format("   • Départ : %s - Arrivée : %s\n", 
+                formatTime(singleJourney.getDepartureDate()), 
+                formatTime(singleJourney.getArrivalDate())));
+        } else {
+            naturalMsg.append("🔄 Trajet avec correspondances :\n");
+            for (int i = 0; i < journey.getJourneys().size(); i++) {
+                var step = journey.getJourneys().get(i);
+                naturalMsg.append(String.format("   %d. %s de %s à %s (%s - %s)\n", 
+                    i + 1,
+                    getTransportEmoji(step.getMeans()), 
+                    step.getStart(), 
+                    step.getStop(),
+                    formatTime(step.getDepartureDate()),
+                    formatTime(step.getArrivalDate())));
+            }
+        }
+        
+        naturalMsg.append("\n✅ Réservation en cours...");
+        
+        return naturalMsg.toString();
+    }
+    
+    /**
+     * Retourne l'emoji correspondant au type de transport
+     */
+    private String getTransportEmoji(String transportType) {
+        return switch (transportType.toLowerCase()) {
+            case "bus" -> "🚌 Bus";
+            case "car" -> "🚗 Voiture";
+            case "bike" -> "🚲 Vélo";
+            case "tram" -> "🚊 Tramway";
+            default -> "🚌 " + transportType;
+        };
+    }
+    
+    /**
+     * Formate l'heure de façon lisible
+     */
+    private String formatTime(int time) {
+        int hours = time / 100;
+        int minutes = time % 100;
+        return String.format("%02d:%02d", hours, minutes);
+    }
 
     public ComposedJourney getMyJourney() {
         return myJourney;

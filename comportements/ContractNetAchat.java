@@ -158,22 +158,29 @@ public class ContractNetAchat extends ContractNetInitiator {
         //map <name to the agent (agence), list of journeys to buy to it>
         Map<String, ArrayList<Journey>> voyagesAAcheter = new HashMap<>();
         var journey = monAgent.getMyJourney();
-        journey.getJourneys().forEach(j ->
-                voyagesAAcheter.compute(j.getProposedBy(),
-                        (agence, list) -> {
-                            if (list == null) list = new ArrayList<>();
-                            list.add(j);
-                            return list;
-                        }));
-        voyagesAAcheter.forEach((agence, journeys) -> {
-            var msg = reponses.get(agence);
-            msg.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-            try {
-                msg.setContentObject(journeys);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
+        
+        // Vérification que le journey n'est pas null
+        if (journey != null && journey.getJourneys() != null) {
+            journey.getJourneys().forEach(j ->
+                    voyagesAAcheter.compute(j.getProposedBy(),
+                            (agence, list) -> {
+                                if (list == null) list = new ArrayList<>();
+                                list.add(j);
+                                return list;
+                            }));
+            voyagesAAcheter.forEach((agence, journeys) -> {
+                var msg = reponses.get(agence);
+                msg.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                try {
+                    msg.setContentObject(journeys);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        } else {
+            // Si aucun journey trouvé, informer l'utilisateur
+            monAgent.println("Aucun trajet trouvé correspondant à vos critères.");
+        }
     }
 
     /**

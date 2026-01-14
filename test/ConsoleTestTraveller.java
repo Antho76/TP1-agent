@@ -1,7 +1,5 @@
 package test;
 
-import agents.TravellerAgent;
-import comportements.ContractNetAchat;
 import jade.core.AID;
 import jade.lang.acl.ACLMessage;
 import java.util.Scanner;

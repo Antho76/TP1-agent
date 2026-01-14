@@ -1,7 +1,5 @@
 package test;
 
-import gui.TravellerGui;
-
 /**
  * Test class for the enhanced TravellerGui with Ollama integration
  * This test can be run independently to verify the GUI functionality

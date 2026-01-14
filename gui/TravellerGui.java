@@ -109,9 +109,9 @@ public class TravellerGui extends JFrame {
             httpClient = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
                     .build();
-            println("Ollama integration initialized successfully");
+            println("🤖 Assistant IA activé pour l'analyse de vos demandes");
         } catch (Exception e) {
-            println("Warning: Could not initialize Ollama - " + e.getMessage());
+            println("⚠️ Assistant IA non disponible - utilisez les contrôles manuels");
         }
     }
 
@@ -269,12 +269,12 @@ public class TravellerGui extends JFrame {
             return;
         }
 
-        println("Processing request: " + request);
+        println("📝 Analyse de votre demande: \"" + request + "\"");
         
         // Show loading message
         SwingUtilities.invokeLater(() -> {
             requestField.setEnabled(false);
-            println("🤖 Analyzing your request with AI...");
+            println("🤖 Traitement en cours...");
         });
 
         // Process in background thread to avoid blocking UI
@@ -282,15 +282,15 @@ public class TravellerGui extends JFrame {
             try {
                 String extractedInfo = analyzeRequestWithOllama(request);
                 SwingUtilities.invokeLater(() -> {
-                    println("AI Analysis Result: " + extractedInfo);
+                    println("✅ Demande comprise ! Recherche des meilleurs trajets...");
                     parseAndExecuteRequest(extractedInfo, request);
                     requestField.setEnabled(true);
                     requestField.setText("");
                 });
             } catch (Exception e) {
                 SwingUtilities.invokeLater(() -> {
-                    println("Error processing request: " + e.getMessage());
-                    println("Using manual controls as fallback.");
+                    println("❌ Problème d'analyse automatique.");
+                    println("🔧 Veuillez utiliser les contrôles manuels ci-dessous.");
                     requestField.setEnabled(true);
                 });
             }
@@ -313,9 +313,6 @@ public class TravellerGui extends JFrame {
         jsonRequest.put("model", modelName);
         jsonRequest.put("prompt", prompt);
         jsonRequest.put("stream", false);
-        
-        println("🔧 Debug: Sending request to " + baseUrl + "/api/generate");
-        println("🔧 Debug: Using model " + modelName);
 
         HttpRequest httpRequest = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/generate"))
@@ -325,9 +322,6 @@ public class TravellerGui extends JFrame {
                 .build();
 
         HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
-        
-        println("🔧 Debug: Response status: " + response.statusCode());
-        println("🔧 Debug: Response body: " + response.body().substring(0, Math.min(200, response.body().length())));
 
         if (response.statusCode() == 200) {
             JSONObject jsonResponse = new JSONObject(response.body());
@@ -369,10 +363,7 @@ public class TravellerGui extends JFrame {
             setComboBoxValue(jListCriteria, criteria);
             sliderTimeDeparture.setValue(timeInt);
             
-            println(String.format("Extracted info - From: %s, To: %s, Time: %s, Transport: %s, Criteria: %s", 
-                    from, to, timeStr, transportType, criteria));
-
-            // Execute the request
+            // Pas de debug, juste exécuter
             GuiEvent guiEv = new GuiEvent(this, TravellerAgent.BUY_TRAVEL);
             guiEv.addParameter(from);
             guiEv.addParameter(to);
@@ -382,10 +373,8 @@ public class TravellerGui extends JFrame {
             myAgent.postGuiEvent(guiEv);
 
         } catch (Exception e) {
-            println("Error parsing AI response: " + e.getMessage());
-            println("Original request was: " + originalRequest);
-            println("AI response was: " + aiResponse);
-            println("Please use manual controls instead.");
+            println("❌ Problème de traitement de votre demande.");
+            println("🔧 Utilisez les contrôles manuels pour faire votre recherche.");
         }
     }
 
