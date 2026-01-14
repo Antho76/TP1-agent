@@ -314,13 +314,6 @@ public class TravellerGui extends JFrame {
         buttonPanel.add(cancelButton);
         panel.add(buttonPanel, BorderLayout.SOUTH);
         
-        // Message si aucun trajet
-        if (tripsListModel.isEmpty()) {
-            JLabel emptyLabel = new JLabel("Aucun trajet réservé pour le moment", JLabel.CENTER);
-            emptyLabel.setForeground(Color.GRAY);
-            panel.add(emptyLabel, BorderLayout.CENTER);
-        }
-        
         return panel;
     }
 
@@ -415,29 +408,41 @@ public class TravellerGui extends JFrame {
      * Ajoute un trajet à la liste des trajets réservés avec confirmation
      */
     public void addBookedTripWithConfirmation(String tripDetails, String fullDetails) {
-        int confirmation = JOptionPane.showConfirmDialog(this,
-            "Confirmer la réservation de ce trajet?\n\n" + fullDetails,
-            "Confirmation de réservation",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE);
-        
-        if (confirmation == JOptionPane.YES_OPTION) {
-            bookedTrips.add(tripDetails);
-            tripsListModel.addElement(tripDetails);
+        SwingUtilities.invokeLater(() -> {
+            int confirmation = JOptionPane.showConfirmDialog(this,
+                "Confirmer la réservation de ce trajet?\n\n" + fullDetails,
+                "Confirmation de réservation",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
             
-            JOptionPane.showMessageDialog(this, 
-                "✅ Trajet réservé avec succès!", 
-                "Réservation confirmée", 
-                JOptionPane.INFORMATION_MESSAGE);
-            
-            // Basculer vers l'onglet "Mes trajets"
-            tabbedPane.setSelectedIndex(1);
-            
-            // Nettoyer la zone de recherche
-            searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été ajouté à vos réservations.");
-        } else {
-            searchResultsArea.append("\n❌ Réservation annulée par l'utilisateur.");
-        }
+            if (confirmation == JOptionPane.YES_OPTION) {
+                // Ajouter à la liste des trajets
+                bookedTrips.add(tripDetails);
+                tripsListModel.addElement(tripDetails);
+                
+                // Debug: vérifier que l'ajout a bien eu lieu
+                System.out.println("DEBUG: Trajet ajouté - " + tripDetails);
+                System.out.println("DEBUG: Nombre de trajets dans la liste: " + tripsListModel.getSize());
+                
+                JOptionPane.showMessageDialog(this, 
+                    "✅ Trajet réservé avec succès!\n\nVous pouvez le voir dans l'onglet 'Mes trajets'", 
+                    "Réservation confirmée", 
+                    JOptionPane.INFORMATION_MESSAGE);
+                
+                // Basculer vers l'onglet "Mes trajets"
+                tabbedPane.setSelectedIndex(1);
+                
+                // Nettoyer la zone de recherche
+                searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été ajouté à vos réservations.");
+                
+                // Forcer le rafraîchissement de la liste
+                tripsList.revalidate();
+                tripsList.repaint();
+                
+            } else {
+                searchResultsArea.append("\n❌ Réservation annulée par l'utilisateur.");
+            }
+        });
     }
 
     /**
