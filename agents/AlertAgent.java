@@ -74,7 +74,12 @@ public class AlertAgent extends GuiAgent {
             ACLMessage alert = new ACLMessage(ACLMessage.INFORM);
             var start = (String) eventFromGui.getParameter(0);
             var stop = (String) eventFromGui.getParameter(1);
-            alert.setContent(start + "," + stop);
+            
+            // Format structuré pour l'alerte : TYPE|SEVERITY|FROM|TO|DESCRIPTION
+            String alertContent = String.format("TRAFFIC_DISRUPTION|HIGH|%s|%s|Incident de circulation signalé entre %s et %s - Trafic interrompu", 
+                start, stop, start, stop);
+            
+            alert.setContent(alertContent);
             alert.addReceiver(topic);
             send(alert);
             println("j'ai envoyé une alerte de pb entre " + start + " et " + stop + "...");

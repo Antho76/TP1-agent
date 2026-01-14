@@ -207,6 +207,16 @@ public class JourneysList implements Serializable {
     public void removeIf(Predicate<Journey> p) {
         catalog.values().forEach(l -> l.removeIf(p));
     }
+    
+    /**
+     * Get all journeys from the catalog
+     * @return list of all journeys
+     */
+    public List<Journey> getAllJourneys() {
+        ArrayList<Journey> allJourneys = new ArrayList<>();
+        catalog.values().forEach(allJourneys::addAll);
+        return allJourneys;
+    }
 
     @Override
     public String toString() {

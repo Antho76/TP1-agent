@@ -73,6 +73,9 @@ public class AgenceAgent extends GuiAgent {
         addBehaviour(new ReceiverBehaviour(this, -1, MessageTemplate.MatchTopic(topic), true, (a, m)->{
                     println("Message recu sur le topic " + topic.getLocalName() + ". Contenu " + m.getContent()
                             + " emis par :  " + m.getSender().getLocalName());
+                    
+                    // Déclencher la gestion de l'alerte
+                    addBehaviour(new comportements.AlertHandler(this, m.getContent()));
                 }));
 
         //FIN REGLAGE ECOUTE DE LA RADIO

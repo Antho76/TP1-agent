@@ -99,10 +99,13 @@ public class TravellerAgent extends GuiAgent {
         detectAgences();
 
         topic = AgentServicesTools.generateTopicAID(this, "TRAFFIC NEWS");
-        //ecoute des messages radio
+        //ecoute des messages radio avec gestion intelligente des alertes
         addBehaviour(new ReceiverBehaviour(this, -1, MessageTemplate.MatchTopic(topic), true, (a, m) -> {
-            // Les alertes de trafic sont affichées à l'utilisateur
-            window.println("🚨 Info trafic: " + m.getContent());
+            // Afficher brièvement l'alerte
+            window.println("🚨 Alerte trafic reçue: " + m.getContent());
+            
+            // Déclencher le gestionnaire d'alertes intelligent
+            addBehaviour(new comportements.ClientAlertHandler(this, m.getContent()));
         }));
     }
 
