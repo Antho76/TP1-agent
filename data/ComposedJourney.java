@@ -107,11 +107,15 @@ public class ComposedJourney implements Serializable {
         nbVia++;
         cost += oneJourney.getCost();
         co2 += oneJourney.getCo2();
-        confort *= (nbVia - 1);
-        confort += oneJourney.getConfort();
-        confort /= nbVia;
+        
+        // Gestion du confort avec protection contre division par zéro
+        if (nbVia == 0) {
+            confort = oneJourney.getConfort();
+        } else {
+            confort = (confort * nbVia + oneJourney.getConfort()) / (nbVia + 1);
+        }
 
-        if (nbVia == 1) {
+        if (nbVia == 0) {
             start = journeys.getFirst().start;
             departureDate = journeys.getFirst().departureDate;
         }

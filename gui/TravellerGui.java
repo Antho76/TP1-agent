@@ -51,11 +51,21 @@ public class TravellerGui extends JFrame {
     private final JTextArea debugLogArea;
 
     /**
-     * Liste des trajets réservés
+     * Liste des trajets réservés (affichage)
      */
     private JList<String> tripsList;
     private DefaultListModel<String> tripsListModel;
     private List<String> bookedTrips;
+    
+    /**
+     * Liste des billets individuels - NOUVEAU: stockage séparé de chaque segment
+     */
+    private List<data.Journey> individualTickets;
+    
+    /**
+     * Compteur de trajets pour nommage
+     */
+    private int tripCounter = 1;
     
     /**
      * Liste des trajets réels avec leurs objets ComposedJourney
@@ -98,6 +108,7 @@ public class TravellerGui extends JFrame {
 
         // Initialisation des listes
         bookedTrips = new ArrayList<>();
+        individualTickets = new ArrayList<>(); // NOUVEAU: liste des billets individuels
         bookedJourneys = new ArrayList<>();
         tripsListModel = new DefaultListModel<>();
 
@@ -143,9 +154,9 @@ public class TravellerGui extends JFrame {
         searchPanel = createSearchPanel();
         tabbedPane.addTab("🔍 Rechercher un trajet", searchPanel);
         
-        // Onglet Mes trajets
+        // Onglet Mes billets - MODIFIÉ: stockage individuel
         tripsPanel = createTripsPanel();
-        tabbedPane.addTab("📋 Mes trajets", tripsPanel);
+        tabbedPane.addTab("🎫 Mes billets", tripsPanel);
         
         // Ajouter les onglets à la fenêtre
         add(tabbedPane, BorderLayout.CENTER);
@@ -311,22 +322,23 @@ public class TravellerGui extends JFrame {
         tripsList.setFont(new Font("SansSerif", Font.PLAIN, 12));
         
         JScrollPane scrollPane = new JScrollPane(tripsList);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("📋 Mes trajets réservés"));
+        scrollPane.setBorder(BorderFactory.createTitledBorder("🎫 Mes billets (stockage individuel)"));
         panel.add(scrollPane, BorderLayout.CENTER);
         
         // Panel de boutons (seulement détails)
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton detailsButton = new JButton("📄 Voir les détails");
+        JButton detailsButton = new JButton("📄 Détails du billet");
         detailsButton.setPreferredSize(new Dimension(160, 40));
         detailsButton.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsButton.addActionListener(e -> showTripDetails());
+        detailsButton.addActionListener(e -> showTicketDetails());
         
         buttonPanel.add(detailsButton);
         
         // Message informatif
         JLabel infoLabel = new JLabel("<html><div style='text-align: center; color: #666;'>" +
-            "� Vos trajets réservés s'affichent ici après confirmation.<br>" +
-            "Sélectionnez un trajet pour voir ses détails." +
+            "🎫 Chaque trajet est organisé avec un nom (ex: Trajet 1).<br>" +
+            "Les billets individuels sont regroupés sous leur trajet.<br>" +
+            "Sélectionnez un billet (pas l'en-tête) pour voir ses détails." +
             "</div></html>");
         infoLabel.setHorizontalAlignment(SwingConstants.CENTER);
         
@@ -377,32 +389,90 @@ public class TravellerGui extends JFrame {
     }
 
     /**
-     * Affiche les détails du trajet sélectionné
+     * NOUVEAU: Affiche les détails du billet individuel sélectionné
      */
-    private void showTripDetails() {
+    private void showTicketDetails() {
         int selectedIndex = tripsList.getSelectedIndex();
         if (selectedIndex == -1) {
             JOptionPane.showMessageDialog(this, 
-                "Veuillez sélectionner un trajet pour voir ses détails.", 
+                "Veuillez sélectionner un billet pour voir ses détails.", 
                 "Aucune sélection", 
                 JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         
-        String selectedTrip = tripsListModel.getElementAt(selectedIndex);
+        String selectedItem = tripsListModel.getElementAt(selectedIndex);
         
-        // Créer un message plus détaillé et formaté
+        // Vérifier si c'est un en-tête de trajet (commence par 📍)
+        if (selectedItem.startsWith("📍")) {
+            JOptionPane.showMessageDialog(this, 
+                "Ceci est un en-tête de trajet.\nVeuillez sélectionner un billet individuel pour voir ses détails.", 
+                "Sélection d'en-tête", 
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        // Trouver l'index réel du billet dans la liste des tickets individuels
+        int ticketIndex = findTicketIndex(selectedIndex);
+        if (ticketIndex == -1 || ticketIndex >= individualTickets.size()) {
+            JOptionPane.showMessageDialog(this, 
+                "Erreur: Billet non trouvé.", 
+                "Erreur", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        data.Journey selectedTicket = individualTickets.get(ticketIndex);
+        
+        // Créer un message détaillé pour le billet
         StringBuilder detailsMessage = new StringBuilder();
-        detailsMessage.append("🚀 DÉTAILS DE VOTRE TRAJET RÉSERVÉ\n");
-        detailsMessage.append("═".repeat(40)).append("\n\n");
-        detailsMessage.append("📋 ").append(selectedTrip).append("\n\n");
-        detailsMessage.append("✅ Status: CONFIRMÉ\n");
-        detailsMessage.append("🎫 Réservation enregistrée avec succès\n");
+        detailsMessage.append("🎫 DÉTAILS DE VOTRE BILLET\n");
+        detailsMessage.append("═".repeat(35)).append("\n\n");
+        
+        // Informations du billet
+        detailsMessage.append("� Trajet: ").append(selectedTicket.getStart()).append(" → ").append(selectedTicket.getStop()).append("\n");
+        detailsMessage.append("🚌 Transport: ").append(selectedTicket.getMeans()).append("\n");
+        
+        // Horaires formatés
+        int depHours = selectedTicket.getDepartureDate() / 100;
+        int depMinutes = selectedTicket.getDepartureDate() % 100;
+        int arrHours = selectedTicket.getArrivalDate() / 100;
+        int arrMinutes = selectedTicket.getArrivalDate() % 100;
+        
+        detailsMessage.append("🕒 Départ: ").append(String.format("%02d:%02d", depHours, depMinutes)).append("\n");
+        detailsMessage.append("🏁 Arrivée: ").append(String.format("%02d:%02d", arrHours, arrMinutes)).append("\n");
+        detailsMessage.append("⏱️ Durée: ").append(selectedTicket.getDuration()).append(" minutes\n");
+        detailsMessage.append("💰 Prix: ").append(String.format("%.2f€", selectedTicket.getCost())).append("\n");
+        detailsMessage.append("🌿 CO2: ").append(selectedTicket.getCo2()).append(" g\n");
+        detailsMessage.append("⭐ Confort: ").append(selectedTicket.getConfort()).append("/10\n\n");
+        detailsMessage.append("✅ Status: CONFIRMÉ - Billet individuel\n");
         
         JOptionPane.showMessageDialog(this, 
             detailsMessage.toString(), 
-            "Détails du trajet réservé", 
+            "Détails du billet réservé", 
             JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    /**
+     * NOUVEAU: Trouve l'index réel d'un billet dans la liste des tickets individuels
+     * en tenant compte des en-têtes de trajets
+     */
+    private int findTicketIndex(int displayIndex) {
+        int ticketCount = 0;
+        
+        for (int i = 0; i <= displayIndex && i < tripsListModel.getSize(); i++) {
+            String item = tripsListModel.getElementAt(i);
+            
+            // Si ce n'est pas un en-tête de trajet, c'est un billet
+            if (!item.startsWith("📍")) {
+                if (i == displayIndex) {
+                    return ticketCount; // Index trouvé
+                }
+                ticketCount++;
+            }
+        }
+        
+        return -1; // Pas trouvé
     }
 
     /**
@@ -466,27 +536,49 @@ public class TravellerGui extends JFrame {
                 // Ajouter à la liste de l'agent (source de vérité)
                 myAgent.addBookedJourney(journey);
                 
-                // Ajouter à nos listes locales
-                bookedTrips.add(tripDetails);
-                bookedJourneys.add(journey);
-                tripsListModel.addElement(tripDetails);
+                // NOUVEAU: Décomposer le trajet en billets individuels avec organisation
+                String tripName = "Trajet " + tripCounter;
+                data.Journey firstSegment = journey.getJourneys().get(0);
+                data.Journey lastSegment = journey.getJourneys().get(journey.getJourneys().size() - 1);
+                String tripSummary = tripName + " : " + firstSegment.getStart() + " → " + lastSegment.getStop();
                 
-                System.out.println("DEBUG: Trajet avec stock ajouté - " + tripDetails);
-                System.out.println("DEBUG: Stock géré pour " + journey.getJourneys().size() + " segments");
+                // Ajouter l'en-tête du trajet
+                bookedTrips.add("📍 " + tripSummary + " (" + journey.getJourneys().size() + " billets)");
+                tripsListModel.addElement("📍 " + tripSummary + " (" + journey.getJourneys().size() + " billets)");
+                
+                // Ajouter chaque billet avec indentation
+                for (int i = 0; i < journey.getJourneys().size(); i++) {
+                    data.Journey individualTicket = journey.getJourneys().get(i);
+                    individualTickets.add(individualTicket);
+                    String ticketDisplay = createGroupedTicketDisplay(individualTicket, i + 1);
+                    bookedTrips.add(ticketDisplay);
+                    tripsListModel.addElement(ticketDisplay);
+                }
+                
+                tripCounter++;
+                
+                // Maintenir la compatibilité
+                bookedJourneys.add(journey);
+                
+                System.out.println("DEBUG: Trajet décomposé en " + journey.getJourneys().size() + " billets individuels");
+                for (int i = 0; i < journey.getJourneys().size(); i++) {
+                    data.Journey ticket = journey.getJourneys().get(i);
+                    System.out.println("  Billet " + (i+1) + ": " + ticket.getStart() + " → " + ticket.getStop());
+                }
                 
                 JOptionPane.showMessageDialog(this, 
                     "✅ Trajet réservé avec succès!\n\n" +
+                    "Votre trajet a été décomposé en " + journey.getJourneys().size() + " billets individuels.\n" +
                     "Les places ont été réservées auprès des agences.\n" +
-                    "Votre réservation est confirmée et enregistrée.\n" +
-                    "Consultez l'onglet 'Mes trajets' pour voir tous vos trajets réservés.", 
+                    "Consultez l'onglet 'Mes billets' pour voir tous vos billets.", 
                     "Réservation confirmée", 
                     JOptionPane.INFORMATION_MESSAGE);
                 
-                // Basculer vers l'onglet "Mes trajets"
+                // Basculer vers l'onglet "Mes billets"
                 tabbedPane.setSelectedIndex(1);
                 
                 // Nettoyer la zone de recherche
-                searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été ajouté à vos réservations avec gestion des stocks.");
+                searchResultsArea.setText("✅ Recherche terminée avec succès!\n\nVotre trajet a été décomposé en billets individuels.");
                 
                 // Forcer le rafraîchissement de la liste
                 tripsList.revalidate();
@@ -598,6 +690,57 @@ public class TravellerGui extends JFrame {
         // Format: "09:00 - A → B | Bus | 10 min | 3,00€"
         return String.format("%s - %s → %s | %s | %d min | %.2f€",
             formattedTime, departure, destination, transportType, totalDuration, totalCost);
+    }
+
+    /**
+     * NOUVEAU: Crée l'affichage pour un billet individuel
+     */
+    private String createIndividualTicketDisplay(data.Journey ticket) {
+        if (ticket == null) {
+            return "🎫 Billet invalide";
+        }
+        
+        // Formatage de l'heure de départ
+        int depHours = ticket.getDepartureDate() / 100;
+        int depMinutes = ticket.getDepartureDate() % 100;
+        String formattedDepTime = String.format("%02d:%02d", depHours, depMinutes);
+        
+        // Formatage de l'heure d'arrivée
+        int arrHours = ticket.getArrivalDate() / 100;
+        int arrMinutes = ticket.getArrivalDate() % 100;
+        String formattedArrTime = String.format("%02d:%02d", arrHours, arrMinutes);
+        
+        // Format: "🎫 09:00-09:30 A→B Bus 30min 3,50€"
+        return String.format("🎫 %s-%s %s→%s %s %dmin %.2f€",
+            formattedDepTime, formattedArrTime,
+            ticket.getStart(), ticket.getStop(), 
+            ticket.getMeans(), ticket.getDuration(), ticket.getCost());
+    }
+
+    /**
+     * NOUVEAU: Crée l'affichage pour un billet regroupé avec numérotation
+     */
+    private String createGroupedTicketDisplay(data.Journey ticket, int billetNum) {
+        if (ticket == null) {
+            return "  └─ 🎫 Billet invalide";
+        }
+        
+        // Formatage de l'heure de départ
+        int depHours = ticket.getDepartureDate() / 100;
+        int depMinutes = ticket.getDepartureDate() % 100;
+        String formattedDepTime = String.format("%02d:%02d", depHours, depMinutes);
+        
+        // Formatage de l'heure d'arrivée
+        int arrHours = ticket.getArrivalDate() / 100;
+        int arrMinutes = ticket.getArrivalDate() % 100;
+        String formattedArrTime = String.format("%02d:%02d", arrHours, arrMinutes);
+        
+        // Format avec indentation: "  └─ Billet 1: 09:00-09:30 A→B Bus 30min 3,50€"
+        String prefix = billetNum == 1 ? "  ├─" : "  └─";
+        return String.format("%s 🎫 Billet %d: %s-%s %s→%s %s %dmin %.2f€",
+            prefix, billetNum, formattedDepTime, formattedArrTime,
+            ticket.getStart(), ticket.getStop(), 
+            ticket.getMeans(), ticket.getDuration(), ticket.getCost());
     }
 
     /**
@@ -1000,6 +1143,51 @@ public class TravellerGui extends JFrame {
      */
     public List<data.ComposedJourney> getBookedJourneys() {
         return new ArrayList<>(bookedJourneys);
+    }
+    
+    /**
+     * Récupère la liste des billets individuels
+     * @return Liste des billets individuels
+     */
+    public List<data.Journey> getIndividualTickets() {
+        return new ArrayList<>(individualTickets);
+    }
+    
+    /**
+     * Méthode de test pour ajouter des trajets directement sans agent
+     * @param journey Le trajet composé à ajouter
+     * @param tripDesc Description du trajet
+     */
+    public void addTripForTest(data.ComposedJourney journey, String tripDesc) {
+        // NOUVEAU: Décomposer le trajet en billets individuels avec organisation
+        String tripName = "Trajet " + tripCounter;
+        data.Journey firstSegment = journey.getJourneys().get(0);
+        data.Journey lastSegment = journey.getJourneys().get(journey.getJourneys().size() - 1);
+        String tripSummary = tripName + " : " + firstSegment.getStart() + " → " + lastSegment.getStop();
+        
+        // Ajouter l'en-tête du trajet
+        bookedTrips.add("📍 " + tripSummary + " (" + journey.getJourneys().size() + " billets)");
+        tripsListModel.addElement("📍 " + tripSummary + " (" + journey.getJourneys().size() + " billets)");
+        
+        // Ajouter chaque billet avec indentation
+        for (int i = 0; i < journey.getJourneys().size(); i++) {
+            data.Journey individualTicket = journey.getJourneys().get(i);
+            individualTickets.add(individualTicket);
+            String ticketDisplay = createGroupedTicketDisplay(individualTicket, i + 1);
+            bookedTrips.add(ticketDisplay);
+            tripsListModel.addElement(ticketDisplay);
+        }
+        
+        tripCounter++;
+        
+        // Maintenir la compatibilité
+        bookedJourneys.add(journey);
+        
+        System.out.println("DEBUG: Trajet décomposé en " + journey.getJourneys().size() + " billets individuels");
+        for (int i = 0; i < journey.getJourneys().size(); i++) {
+            data.Journey ticket = journey.getJourneys().get(i);
+            System.out.println("  Billet " + (i+1) + ": " + ticket.getStart() + " → " + ticket.getStop());
+        }
     }
     
     /**
