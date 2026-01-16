@@ -66,6 +66,17 @@ public class ClientAlertHandler extends OneShotBehaviour {
                     
                     System.out.println("🎯 TRAJET IMPACTÉ TROUVÉ !");
                     
+                    // ⚠️ IMPORTANT : Sauvegarder les informations du trajet ORIGINAL COMPLET avant toute modification
+                    List<Journey> segments = cancelledJourney.getJourneys();
+                    String originalDeparture = segments.get(0).getStart();
+                    String originalDestination = segments.get(segments.size() - 1).getStop();
+                    int originalTime = segments.get(0).getDepartureDate();
+                    String originalCriteria = cancelledJourney.getOriginalCriteria();
+                    String originalTransportType = cancelledJourney.getOriginalTransportType();
+                    
+                    System.out.println("💾 Trajet original sauvegardé: " + originalDeparture + " → " + originalDestination + 
+                                     " à " + formatTime(originalTime));
+                    
                     // Trouver et supprimer uniquement le segment annulé
                     Journey cancelledSegment = findCancelledSegment(cancelledJourney, start, stop, means, departure);
                     
@@ -124,7 +135,9 @@ public class ClientAlertHandler extends OneShotBehaviour {
                     });
 
                     // Proposer un trajet alternatif avec le système séquentiel
-                    proposeAlternativeRoutes(cancelledJourney, reason);
+                    // Utiliser les informations du trajet ORIGINAL sauvegardées
+                    proposeAlternativeRoutes(originalDeparture, originalDestination, originalTime, 
+                                           originalCriteria, originalTransportType, reason);
 
                 } else {
                     System.out.println("ℹ️ Aucun trajet réservé impacté par cette alerte");
@@ -223,22 +236,16 @@ public class ClientAlertHandler extends OneShotBehaviour {
 
     /**
      * Propose des itinéraires alternatifs pour remplacer le trajet annulé
+     * @param originalDeparture Point de départ du trajet original complet
+     * @param originalDestination Point d'arrivée du trajet original complet
+     * @param originalTime Heure de départ du trajet original
+     * @param originalCriteria Critère de recherche original (cost, duration, etc.)
+     * @param originalTransportType Type de transport préféré original
+     * @param reason Raison de l'annulation
      */
-    private void proposeAlternativeRoutes(ComposedJourney cancelledJourney, String reason) {
-        if (cancelledJourney == null || cancelledJourney.getJourneys().isEmpty()) return;
-        
-        // Récupérer les informations du trajet global (point de départ et d'arrivée)
-        Journey firstSegment = cancelledJourney.getJourneys().get(0);
-        Journey lastSegment = cancelledJourney.getJourneys().get(cancelledJourney.getJourneys().size() - 1);
-        
-        String originalDeparture = firstSegment.getStart();
-        String originalDestination = lastSegment.getStop();
-        int originalTime = firstSegment.getDepartureDate();
-        
-        // Récupérer les préférences originales sauvegardées
-        String originalCriteria = cancelledJourney.getOriginalCriteria();
-        String originalTransportType = cancelledJourney.getOriginalTransportType();
-        
+    private void proposeAlternativeRoutes(String originalDeparture, String originalDestination, 
+                                         int originalTime, String originalCriteria, 
+                                         String originalTransportType, String reason) {
         System.out.println("🔍 Proposition de recherche d'alternatives pour le trajet annulé: " + 
                           originalDeparture + " → " + originalDestination);
         System.out.println("📋 Préférences récupérées - Critère: '" + originalCriteria + 
