@@ -6,7 +6,6 @@
 
 ```bash
 # 1. Compiler le projet
-cd "/Users/antho/Desktop/projets/TP ADAM"
 javac -cp ".:lib/*" agents/*.java comportements/*.java data/*.java gui/*.java launch/*.java examples/*.java
 
 # 2. Exécuter la simulation
