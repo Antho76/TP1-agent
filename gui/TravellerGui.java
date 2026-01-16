@@ -604,9 +604,30 @@ public class TravellerGui extends JFrame {
             
             // Reconstruire la liste affichée
             for (data.ComposedJourney journey : currentJourneys) {
-                String tripSummary = createTripSummaryFromJourney(journey);
-                bookedTrips.add(tripSummary);
-                tripsListModel.addElement(tripSummary);
+                List<data.Journey> segments = journey.getJourneys();
+                
+                // Vérifier s'il y a une rupture de continuité
+                boolean hasGap = false;
+                for (int i = 0; i < segments.size() - 1; i++) {
+                    if (!segments.get(i).getStop().equals(segments.get(i + 1).getStart())) {
+                        hasGap = true;
+                        break;
+                    }
+                }
+                
+                // Si rupture de continuité, afficher chaque segment comme un billet séparé
+                if (hasGap && segments.size() > 1) {
+                    for (int i = 0; i < segments.size(); i++) {
+                        String ticketDisplay = createIndividualTicketDisplay(segments.get(i));
+                        bookedTrips.add(ticketDisplay);
+                        tripsListModel.addElement(ticketDisplay);
+                    }
+                } else {
+                    // Trajet normal, affichage classique
+                    String tripSummary = createTripSummaryFromJourney(journey);
+                    bookedTrips.add(tripSummary);
+                    tripsListModel.addElement(tripSummary);
+                }
             }
             
             // Mettre à jour bookedJourneys pour rester synchronisé
@@ -636,10 +657,32 @@ public class TravellerGui extends JFrame {
             
             // Reconstruire complètement les listes
             for (data.ComposedJourney journey : agentJourneys) {
-                String tripSummary = createTripSummaryFromJourney(journey);
-                bookedTrips.add(tripSummary);
-                tripsListModel.addElement(tripSummary);
-                bookedJourneys.add(journey);
+                List<data.Journey> segments = journey.getJourneys();
+                
+                // Vérifier s'il y a une rupture de continuité
+                boolean hasGap = false;
+                for (int i = 0; i < segments.size() - 1; i++) {
+                    if (!segments.get(i).getStop().equals(segments.get(i + 1).getStart())) {
+                        hasGap = true;
+                        break;
+                    }
+                }
+                
+                // Si rupture de continuité, afficher chaque segment comme un billet séparé
+                if (hasGap && segments.size() > 1) {
+                    for (int i = 0; i < segments.size(); i++) {
+                        String ticketDisplay = createIndividualTicketDisplay(segments.get(i));
+                        bookedTrips.add(ticketDisplay);
+                        tripsListModel.addElement(ticketDisplay);
+                    }
+                    bookedJourneys.add(journey);
+                } else {
+                    // Trajet normal, affichage classique
+                    String tripSummary = createTripSummaryFromJourney(journey);
+                    bookedTrips.add(tripSummary);
+                    tripsListModel.addElement(tripSummary);
+                    bookedJourneys.add(journey);
+                }
             }
             
             // Forcer la mise à jour visuelle
@@ -665,8 +708,44 @@ public class TravellerGui extends JFrame {
             return "Trajet invalide";
         }
         
-        data.Journey firstSegment = journey.getJourneys().get(0);
-        data.Journey lastSegment = journey.getJourneys().get(journey.getJourneys().size() - 1);
+        List<data.Journey> segments = journey.getJourneys();
+        
+        // Vérifier s'il y a une rupture de continuité
+        boolean hasGap = false;
+        for (int i = 0; i < segments.size() - 1; i++) {
+            if (!segments.get(i).getStop().equals(segments.get(i + 1).getStart())) {
+                hasGap = true;
+                break;
+            }
+        }
+        
+        // Si rupture de continuité, afficher chaque segment séparément
+        if (hasGap && segments.size() > 1) {
+            StringBuilder sb = new StringBuilder("⚠️ Segments non connectés : ");
+            for (int i = 0; i < segments.size(); i++) {
+                data.Journey segment = segments.get(i);
+                int hours = segment.getDepartureDate() / 100;
+                int minutes = segment.getDepartureDate() % 100;
+                String formattedTime = String.format("%02d:%02d", hours, minutes);
+                
+                sb.append(String.format("%s %s→%s (%s, %d min, %.2f€)",
+                    formattedTime,
+                    segment.getStart(),
+                    segment.getStop(),
+                    segment.getMeans(),
+                    segment.getDuration(),
+                    segment.getCost()));
+                
+                if (i < segments.size() - 1) {
+                    sb.append(" | ");
+                }
+            }
+            return sb.toString();
+        }
+        
+        // Sinon, affichage normal (trajet continu)
+        data.Journey firstSegment = segments.get(0);
+        data.Journey lastSegment = segments.get(segments.size() - 1);
         
         String departure = firstSegment.getStart();
         String destination = lastSegment.getStop();
@@ -677,7 +756,7 @@ public class TravellerGui extends JFrame {
         double totalCost = 0.0;
         String transportType = firstSegment.getMeans();
         
-        for (data.Journey segment : journey.getJourneys()) {
+        for (data.Journey segment : segments) {
             totalDuration += segment.getDuration();
             totalCost += segment.getCost();
         }

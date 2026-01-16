@@ -65,21 +65,48 @@ public class ClientAlertHandler extends OneShotBehaviour {
                     travellerAgent.markAsProcessed(journeyKey);
                     
                     System.out.println("🎯 TRAJET IMPACTÉ TROUVÉ !");
-                    System.out.println("   Suppression du trajet: " + start + " → " + stop + " (" + means + ")");
-
-                    // Supprimer le trajet des réservations de l'agent
-                    travellerAgent.removeBookedJourney(cancelledJourney);
-
-                    // Libérer les places dans le stock
-                    for (Journey journey : cancelledJourney.getJourneys()) {
-                        journey.cancelBooking();
-                        System.out.println("📦 Stock restauré pour: " + journey.getStart() + " → " + journey.getStop() + " (" + journey.getMeans() + ")");
+                    
+                    // Trouver et supprimer uniquement le segment annulé
+                    Journey cancelledSegment = findCancelledSegment(cancelledJourney, start, stop, means, departure);
+                    
+                    if (cancelledSegment != null) {
+                        System.out.println("   Suppression du segment: " + start + " → " + stop + " (" + means + ")");
+                        
+                        // Supprimer uniquement le segment annulé du trajet composé
+                        cancelledJourney.getJourneys().remove(cancelledSegment);
+                        
+                        // Recalculer les propriétés du trajet composé (start, stop, durée, coût, etc.)
+                        cancelledJourney.recalculateProperties();
+                        
+                        // Libérer les places du segment annulé
+                        cancelledSegment.cancelBooking();
+                        System.out.println("📦 Stock restauré pour: " + cancelledSegment.getStart() + " → " + 
+                                         cancelledSegment.getStop() + " (" + cancelledSegment.getMeans() + ")");
+                        
+                        // Si le trajet composé n'a plus de segments, le supprimer complètement
+                        if (cancelledJourney.getJourneys().isEmpty()) {
+                            System.out.println("⚠️ Le trajet composé n'a plus de segments, suppression complète");
+                            travellerAgent.removeBookedJourney(cancelledJourney);
+                        } else {
+                            // Garder les segments restants même s'ils ne sont plus connectés
+                            boolean isValid = isJourneyContinuous(cancelledJourney);
+                            
+                            if (!isValid) {
+                                System.out.println("⚠️ Le trajet n'est plus continu mais les segments sont conservés");
+                                System.out.println("   Segments restants :");
+                                for (Journey j : cancelledJourney.getJourneys()) {
+                                    System.out.println("   - " + j.getStart() + " → " + j.getStop() + " (" + j.getMeans() + ")");
+                                }
+                            }
+                            
+                            System.out.println("✅ Segment annulé supprimé, " + cancelledJourney.getJourneys().size() + 
+                                             " segment(s) restant(s) dans le trajet");
+                        }
+                        
+                        System.out.println("📊 Trajets restants: " + travellerAgent.getBookedJourneys().size());
                     }
 
-                    System.out.println("✅ Trajet supprimé et stock restauré");
-                    System.out.println("📊 Trajets restants: " + travellerAgent.getBookedJourneys().size());
-
-                    // Mettre à jour l'interface graphique pour supprimer le trajet de la liste
+                    // Mettre à jour l'interface graphique pour refléter les changements
                     // Forcer la mise à jour avec un délai pour s'assurer de la synchronisation
                     SwingUtilities.invokeLater(() -> {
                         try {
@@ -143,6 +170,55 @@ public class ClientAlertHandler extends OneShotBehaviour {
             }
         }
         return null;
+    }
+
+    /**
+     * Trouve le segment spécifique annulé dans un trajet composé
+     */
+    private Journey findCancelledSegment(ComposedJourney composedJourney, 
+            String start, String stop, String means, int departure) {
+        for (Journey segment : composedJourney.getJourneys()) {
+            boolean startMatch = segment.getStart().equals(start);
+            boolean stopMatch = segment.getStop().equals(stop);
+            boolean meansMatch = segment.getMeans().equals(means);
+            boolean departureMatch = segment.getDepartureDate() == departure;
+
+            if (startMatch && stopMatch && meansMatch && departureMatch) {
+                System.out.println("✅ Segment annulé identifié: " + segment.getStart() + " → " + 
+                                 segment.getStop() + " (" + segment.getMeans() + ")");
+                return segment;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Vérifie si un trajet composé est continu (chaque segment se connecte au suivant)
+     */
+    private boolean isJourneyContinuous(ComposedJourney composedJourney) {
+        List<Journey> segments = composedJourney.getJourneys();
+        
+        // Un trajet vide ou avec un seul segment est considéré comme valide
+        if (segments.size() <= 1) {
+            return true;
+        }
+        
+        // Vérifier que chaque segment se connecte au suivant
+        for (int i = 0; i < segments.size() - 1; i++) {
+            Journey current = segments.get(i);
+            Journey next = segments.get(i + 1);
+            
+            // L'arrivée du segment actuel doit correspondre au départ du segment suivant
+            if (!current.getStop().equals(next.getStart())) {
+                System.out.println("❌ Rupture de continuité détectée: " + 
+                                 current.getStart() + " → " + current.getStop() + 
+                                 " ne se connecte pas à " + next.getStart() + " → " + next.getStop());
+                return false;
+            }
+        }
+        
+        System.out.println("✅ Le trajet est continu");
+        return true;
     }
 
     /**

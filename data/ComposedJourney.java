@@ -278,6 +278,49 @@ public class ComposedJourney implements Serializable {
         this.originalTransportType = originalTransportType != null ? originalTransportType : "any";
     }
 
+    /**
+     * Recalcule toutes les propriétés du trajet composé après modification des segments
+     * (par exemple après suppression d'un segment)
+     */
+    public void recalculateProperties() {
+        if (journeys.isEmpty()) {
+            start = null;
+            stop = null;
+            duration = 0;
+            cost = 0;
+            co2 = 0;
+            confort = 0;
+            nbVia = -1;
+            departureDate = 0;
+            arrivalDate = 0;
+            return;
+        }
+
+        // Recalculer le départ et l'arrivée
+        start = journeys.get(0).start;
+        stop = journeys.get(journeys.size() - 1).stop;
+        departureDate = journeys.get(0).departureDate;
+        arrivalDate = journeys.get(journeys.size() - 1).arrivalDate;
+
+        // Recalculer le coût, CO2 et confort
+        cost = 0;
+        co2 = 0;
+        double totalConfort = 0;
+        
+        for (Journey j : journeys) {
+            cost += j.getCost();
+            co2 += j.getCo2();
+            totalConfort += j.getConfort();
+        }
+        
+        confort = (int) (totalConfort / journeys.size());
+        nbVia = journeys.size() - 1;
+        
+        // Recalculer la durée
+        duration = ((arrivalDate / 100) * 60 + arrivalDate % 100) - 
+                   ((departureDate / 100) * 60 + departureDate % 100);
+    }
+
     public static void main(String[] args) {
         JourneysList journeysList = new JourneysList();
         journeysList.addJourney(new Journey("VAL", "LILLE", "car", 1440, 30, 10));
