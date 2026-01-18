@@ -8,9 +8,8 @@
 javac -encoding UTF-8 -cp ".;lib/*" agents\*.java comportements\*.java data\*.java gui\*.java launch\*.java examples\*.java test\*.java
 ```
 
-## 🎯 Lancement - 3 Options
+## 🚀 Lancer le Système
 
-### 1️⃣ Version Standard (Recommandée)
 ```powershell
 # Windows PowerShell
 java -cp ".;lib/*" launch.LaunchSimu
@@ -19,34 +18,6 @@ java -cp ".;lib/*" launch.LaunchSimu
 ```bash
 # Unix / macOS
 java -cp ".:lib/*" launch.LaunchSimu
-```
-✅ Fonctionne sans Ollama | 4 agences + 2 voyageurs | Interface stable
-
-### 2️⃣ Version Avec IA (Ollama)
-```powershell
-# Windows PowerShell
-java -cp ".;lib/*" launch.LaunchEnhancedSimu
-```
-
-```bash
-# Unix / macOS
-java -cp ".:lib/*" launch.LaunchEnhancedSimu
-```
-🤖 Comprend le langage naturel | Requiert Ollama sur `http://localhost:11434`
-
-### 3️⃣ Version Avec Revente de Billets
-```powershell
-# Windows PowerShell
-java -cp ".;lib/*" launch.LaunchWithResale
-```
-
-```bash
-# Unix / macOS
-java -cp ".:lib/*" launch.LaunchWithResale
-```
-🔔 Système d'enchères | Popup pour choisir le nombre de voyageurs (1-6) | 🤖 Ollama optionnel pour langage naturel + confirmations IA
-
----
 
 ## � Tests Individuels
 
