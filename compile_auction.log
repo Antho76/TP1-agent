@@ -1,0 +1,8 @@
+﻿javac : Note: Some input files use unchecked or unsafe operations.
+Au caractère Ligne:1 : 1
++ javac -cp ".;lib/*" agents/*.java comportements/*.java data/*.java gu ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Note: Some inpu...afe operations.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Note: Recompile with -Xlint:unchecked for details.

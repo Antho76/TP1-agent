@@ -5,41 +5,146 @@
 ### 🏃 Lancer le Projet en 2 Commandes
 
 ```bash
+# Unix / macOS
 # 1. Compiler le projet
 javac -cp ".:lib/*" agents/*.java comportements/*.java data/*.java gui/*.java launch/*.java examples/*.java
 
-# 2. Exécuter la simulation
+# 2. Exécuter la simulation (choisir une des options ci-dessous)
+```
+
+```powershell
+# Windows PowerShell (important: classpath uses ';' pas ':')
+# 1. Compiler le projet
+javac -encoding UTF-8 -cp ".;lib/*" agents/*.java comportements/*.java data/*.java gui/*.java launch/*.java examples/*.java
+
+# 2. Exécuter la simulation (choisir une des options ci-dessous)
+```
+
+### 🎯 Options de Lancement
+
+| Mode | Commande | Description |
+|------|----------|-------------|
+| **🔄 Avec Revente** | `java -cp ".;lib/*" launch.LaunchWithResale` | Système complet avec enchères de billets |
+| **📦 Standard** | `java -cp ".;lib/*" launch.LaunchSimu` | Version classique sans revente |
+| **🤖 Avec IA** | `java -cp ".;lib/*" launch.LaunchEnhancedSimu` | Version avec Ollama (langage naturel) |
+
+---
+
+## 🔄 Système de Revente de Billets (Enchères)
+
+### Lancement avec Revente
+
+```powershell
+# Windows PowerShell
+java -cp ".;lib/*" launch.LaunchWithResale
+```
+
+```bash
+# Unix / macOS
+java -cp ".:lib/*" launch.LaunchWithResale
+```
+
+**Au démarrage, une popup vous demande combien de voyageurs créer (1 à 6).**
+
+### Fonctionnalités du Système d'Enchères
+
+1. **Revente Manuelle**
+   - Onglet "Mes billets" → Sélectionner un billet
+   - Cliquer sur "🔔 Revendre"
+   - Définir le prix minimum
+   - Les autres voyageurs reçoivent une notification et peuvent enchérir
+
+2. **Revente Automatique (après incident)**
+   - Quand une alerte annule un segment de votre trajet
+   - Les billets devenus inutiles sont proposés à la revente
+   - Vous choisissez le prix minimum (50%, 70%, 80% ou personnalisé)
+
+3. **Participer aux Enchères**
+   - Quand un autre voyageur vend un billet, vous recevez une popup
+   - Vous avez 30 secondes pour faire une offre
+   - Le meilleur enchérisseur remporte le billet
+
+4. **Résultat de l'Enchère**
+   - **Vendeur** : Popup avec le nom du gagnant et le prix obtenu
+   - **Acheteur** : Le billet apparaît dans "Mes billets" avec le badge 🏷️ [ENCHÈRE]
+
+### Exemple de Workflow
+
+```
+Voyageur1: Réserve A → B → C → E
+    ↓
+Alerte: Incident sur B ↔ C
+    ↓
+Voyageur1: Reçoit proposition de revendre A→B et C→E
+    ↓
+Voyageur1: Accepte (prix min 50%)
+    ↓
+Voyageur2: Reçoit notification, propose 4€
+    ↓
+Enchère terminée: Voyageur2 gagne
+    ↓
+Voyageur1: Notification "Vendu à Voyageur2 pour 4€"
+Voyageur2: Billet ajouté à ses réservations
+```
+
+---
+
+## 📦 Lancement Standard (Sans Revente)
+
+```powershell
+# Windows PowerShell
+java -cp ".;lib/*" launch.LaunchSimu
+```
+
+```bash
+# Unix / macOS
 java -cp ".:lib/*" launch.LaunchSimu
 ```
 
-**C'est parti ! 🎉** L'interface JADE et les agents vont démarrer.
+Cette version inclut :
+- 4 Agences de transport (Bus, Tram, Voiture, Vélo)
+- 2 Voyageurs
+- 1 Agent d'alertes
+- **Pas de système d'enchères**
 
 ---
 
 ## 📋 Table des Matières
 1. [Démarrage Rapide](#-démarrage-rapide)
-2. [Compilation et Exécution Détaillée](#-compilation-et-exécution-détaillée)
-3. [Utilisation Rapide](#-utilisation-rapide)
-4. [Description du Projet](#-description-du-projet)
-5. [Prérequis](#-prérequis)
-6. [Installation Complète](#-installation-complète)
-7. [Fonctionnalités](#-fonctionnalités)
-8. [Utilisation Détaillée](#-utilisation)
-9. [Architecture](#-architecture)
-10. [Tests](#-tests)
-11. [Configuration](#-configuration)
-12. [Dépannage](#-dépannage)
+2. [Système de Revente de Billets](#-système-de-revente-de-billets-enchères)
+3. [Lancement Standard](#-lancement-standard-sans-revente)
+4. [Compilation et Exécution Détaillée](#-compilation-et-exécution-détaillée)
+5. [Utilisation Rapide](#-utilisation-rapide)
+6. [Description du Projet](#-description-du-projet)
+7. [Prérequis](#-prérequis)
+8. [Installation Complète](#-installation-complète)
+9. [Fonctionnalités](#-fonctionnalités)
+10. [Utilisation Détaillée](#-utilisation)
+11. [Architecture](#-architecture)
+12. [Tests](#-tests)
+13. [Configuration](#-configuration)
+14. [Dépannage](#-dépannage)
 
 ---
 
 ## 🏗️ Compilation et Exécution Détaillée
 
 ### Compilation Complète
+
 ```bash
+# Unix / macOS
 cd "/Users/antho/Desktop/projets/TP ADAM"
 
 # Compiler tous les fichiers Java
 javac -cp ".:lib/*" agents/*.java comportements/*.java data/*.java gui/*.java launch/*.java examples/*.java test/*.java
+```
+
+```powershell
+# Windows PowerShell
+Set-Location -Path "C:\Users\$env:USERNAME\Desktop\projets\TP ADAM"
+
+# Compiler tous les fichiers Java (classpath séparateur ';')
+javac -cp ".;lib/*" agents\*.java comportements\*.java data\*.java gui\*.java launch\*.java examples\*.java test\*.java
 ```
 
 ### Exécution - Version Standard (Recommandée)
@@ -224,9 +329,31 @@ Une fois le projet lancé, vous verrez:
 - **Réactions automatiques:**
   - Notification des voyageurs impactés
   - Proposition de trajets alternatifs
+  - Proposition de revente des billets inutiles (mode enchères)
   - Remboursement ou remplacement
 
-### 📊 6. Optimisation Multi-Critères
+### � 6. Système d'Enchères de Billets (LaunchWithResale)
+- **Revente manuelle:**
+  - Bouton "🔔 Revendre" dans l'onglet "Mes billets"
+  - Définition du prix minimum
+  - Notification à tous les voyageurs
+
+- **Revente automatique après incident:**
+  - Détection des billets devenus inutiles
+  - Proposition de mise en enchère
+  - Choix du pourcentage du prix original
+
+- **Protocole Contract-Net pour les enchères:**
+  - Timeout de 30 secondes
+  - Enchères séquentielles (pas de conflit)
+  - Notification du gagnant au vendeur
+  - Ajout automatique du billet chez l'acheteur
+
+- **Identification unique des billets:**
+  - Chaque billet a un ID unique
+  - Suppression précise du bon billet après vente
+
+### �📊 7. Optimisation Multi-Critères
 - **Critères de choix:**
   - 💰 **cost** - Prix minimum
   - ⏱️ **duration** - Temps le plus court
@@ -293,20 +420,23 @@ Une fois le projet lancé, vous verrez:
 ### Structure des Packages
 
 ```
-TP ADAM/
+TP1-agent/
 ├── agents/                    # Agents JADE
-│   ├── TravellerAgent.java   # Agent voyageur
+│   ├── TravellerAgent.java   # Agent voyageur (avec support enchères)
 │   ├── AgenceAgent.java      # Agent agence
-│   └── AlertAgent.java       # Agent alertes
+│   ├── AlertAgent.java       # Agent alertes
+│   └── BuyerAgent.java       # Agent acheteur automatique (enchères)
 │
 ├── comportements/            # Comportements des agents
 │   ├── ContractNetAchat.java # Protocole achat (voyageur)
 │   ├── ContractNetVente.java # Protocole vente (agence)
 │   ├── ClientAlertHandler.java # Gestion alertes client
-│   └── AlertHandler.java     # Gestion alertes agence
+│   ├── AlertHandler.java     # Gestion alertes agence
+│   ├── TicketAuctionInitiator.java # Lancement enchères (vendeur)
+│   └── TicketAuctionResponder.java # Réponse enchères (acheteur)
 │
 ├── data/                     # Modèles de données
-│   ├── Journey.java          # Trajet simple
+│   ├── Journey.java          # Trajet simple (avec ID unique)
 │   ├── ComposedJourney.java  # Trajet composé
 │   ├── JourneysList.java     # Liste de trajets
 │   ├── BikeZoneManager.java  # Gestion vélos
@@ -314,19 +444,14 @@ TP ADAM/
 │   └── TextEnhancementService.java # Service IA texte
 │
 ├── gui/                      # Interfaces graphiques
-│   ├── TravellerGui.java     # Interface voyageur
+│   ├── TravellerGui.java     # Interface voyageur (avec boutons revente)
 │   ├── AgenceGui.java        # Interface agence
 │   └── AlertGui.java         # Interface alertes
 │
 ├── launch/                   # Classes de lancement
 │   ├── LaunchSimu.java       # Version standard
-│   └── LaunchEnhancedSimu.java # Version avec Ollama
-│
-├── test/                     # Tests unitaires
-│   ├── TestTravellerGuiWithOllama.java
-│   ├── CapacityManagementTest.java
-│   ├── WeatherManagementTest.java
-│   └── ...
+│   ├── LaunchEnhancedSimu.java # Version avec Ollama
+│   └── LaunchWithResale.java # Version avec enchères de billets
 │
 ├── examples/                 # Exemples
 │   └── TravelRequestExamples.java
@@ -483,6 +608,10 @@ javac -cp ".:lib/*" agents/*.java comportements/*.java data/*.java gui/*.java la
 ---
 
 ## 🎯 Prochaines Améliorations Possibles
+- [x] Système de revente de billets aux enchères
+- [x] Notification vendeur/acheteur après enchère
+- [x] ID unique pour chaque billet
+- [x] Configuration du nombre de voyageurs au démarrage
 - [ ] Intégration API trafic routier temps réel
 - [ ] Système de fidélité et réductions
 - [ ] Historique des trajets par utilisateur

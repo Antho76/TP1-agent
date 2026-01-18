@@ -10,7 +10,10 @@ import jade.gui.GuiEvent;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import comportements.ContractNetAchat;
+import comportements.TicketAuctionInitiator;
+import comportements.TicketAuctionResponder;
 import data.ComposedJourney;
+import data.Journey;
 import data.JourneysList;
 import data.TextEnhancementService;
 import data.WeatherManager;
@@ -84,6 +87,11 @@ public class TravellerAgent extends GuiAgent {
     private java.util.Set<String> processedCancellations = new java.util.HashSet<>();
 
     /**
+     * Budget pour les enchères de billets
+     */
+    private double auctionBudget = 50.0;
+
+    /**
      * Initialisation de l'agent
      */
     @Override
@@ -96,6 +104,12 @@ public class TravellerAgent extends GuiAgent {
         
         // Initialize booked journeys list
         this.bookedJourneys = new ArrayList<>();
+        
+        // Enregistrement en tant que client voyageur (pour les enchères)
+        AgentServicesTools.register(this, "travel-client", "traveller");
+        
+        // Démarrer l'écoute des enchères de billets
+        startAuctionListener();
         
         // Message de bienvenue simplifié (pas de logs techniques)
         window.println("🎉 Bienvenue dans votre assistant de voyage !");
@@ -549,6 +563,150 @@ public class TravellerAgent extends GuiAgent {
                 segment.cancelBooking();
             });
         }
+    }
+
+    /**
+     * Démarre l'écoute des enchères de billets d'autres clients
+     */
+    private void startAuctionListener() {
+        jade.lang.acl.MessageTemplate template = jade.lang.acl.MessageTemplate.and(
+            jade.lang.acl.MessageTemplate.MatchProtocol(jade.domain.FIPANames.InteractionProtocol.FIPA_CONTRACT_NET),
+            jade.lang.acl.MessageTemplate.MatchPerformative(jade.lang.acl.ACLMessage.CFP)
+        );
+        
+        addBehaviour(new TicketAuctionResponder(this, template, auctionBudget, null));
+        window.printDebug("Écoute des enchères de billets activée (budget: " + String.format("%.2f€", auctionBudget) + ")");
+    }
+
+    /**
+     * Lance une enchère pour revendre un billet
+     * @param ticket Le billet à revendre
+     * @param minPrice Le prix minimum accepté
+     */
+    public void startTicketAuction(Journey ticket, double minPrice) {
+        if (ticket == null) {
+            window.println("❌ Impossible de lancer l'enchère: billet invalide");
+            return;
+        }
+        
+        window.println("🔔 Lancement de l'enchère pour le billet: " + 
+                      ticket.getStart() + " → " + ticket.getStop());
+        window.println("   💰 Prix minimum: " + String.format("%.2f€", minPrice));
+        
+        addBehaviour(new TicketAuctionInitiator(this, ticket, minPrice));
+    }
+
+    /**
+     * Lance une enchère pour revendre un billet avec prix minimum = 50% du prix original
+     * @param ticket Le billet à revendre
+     */
+    public void startTicketAuction(Journey ticket) {
+        if (ticket != null) {
+            double minPrice = ticket.getCost() * 0.5; // 50% du prix original par défaut
+            startTicketAuction(ticket, minPrice);
+        }
+    }
+
+    /**
+     * Propose à l'utilisateur de mettre un billet en enchère
+     * @param ticket Le billet à potentiellement revendre
+     * @param reason La raison de la revente (ex: annulation)
+     * @return true si l'utilisateur accepte de mettre en enchère
+     */
+    public boolean proposeAuction(Journey ticket, String reason) {
+        if (ticket == null) return false;
+        
+        StringBuilder message = new StringBuilder();
+        message.append("🎫 PROPOSITION DE REVENTE\n\n");
+        message.append("Suite à: ").append(reason).append("\n\n");
+        message.append("Voulez-vous mettre ce billet en enchère?\n\n");
+        message.append("📍 Trajet: ").append(ticket.getStart()).append(" → ").append(ticket.getStop()).append("\n");
+        message.append("🚌 Transport: ").append(ticket.getMeans()).append("\n");
+        message.append("💰 Prix original: ").append(String.format("%.2f€", ticket.getCost())).append("\n");
+        message.append("💵 Prix minimum suggéré: ").append(String.format("%.2f€", ticket.getCost() * 0.5)).append("\n\n");
+        message.append("Les autres voyageurs et services spécialisés seront notifiés.");
+        
+        int response = javax.swing.JOptionPane.showConfirmDialog(null,
+            message.toString(),
+            "🔔 Revente de billet",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.QUESTION_MESSAGE);
+        
+        if (response == javax.swing.JOptionPane.YES_OPTION) {
+            // Demander le prix minimum
+            String priceInput = javax.swing.JOptionPane.showInputDialog(null,
+                "Entrez le prix minimum souhaité (suggestion: " + 
+                String.format("%.2f€", ticket.getCost() * 0.5) + "):",
+                "💰 Prix minimum",
+                javax.swing.JOptionPane.QUESTION_MESSAGE);
+            
+            if (priceInput != null && !priceInput.trim().isEmpty()) {
+                try {
+                    double minPrice = Double.parseDouble(priceInput.replace(",", ".").replace("€", "").trim());
+                    startTicketAuction(ticket, minPrice);
+                    return true;
+                } catch (NumberFormatException e) {
+                    window.println("⚠️ Format de prix invalide, utilisation du prix par défaut");
+                    startTicketAuction(ticket);
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Propose la revente de plusieurs billets liés à une annulation
+     * @param tickets Liste des billets à potentiellement revendre
+     * @param reason Raison de la proposition
+     */
+    public void proposeMultipleAuctions(List<Journey> tickets, String reason) {
+        if (tickets == null || tickets.isEmpty()) return;
+        
+        StringBuilder message = new StringBuilder();
+        message.append("🎫 BILLETS DISPONIBLES POUR REVENTE\n\n");
+        message.append("Suite à: ").append(reason).append("\n\n");
+        message.append("Les billets suivants ne sont plus utiles:\n\n");
+        
+        for (int i = 0; i < tickets.size(); i++) {
+            Journey ticket = tickets.get(i);
+            message.append(String.format("%d. %s → %s (%s) - %.2f€\n",
+                i + 1, ticket.getStart(), ticket.getStop(), 
+                ticket.getMeans(), ticket.getCost()));
+        }
+        
+        message.append("\nVoulez-vous les mettre en enchère?");
+        
+        int response = javax.swing.JOptionPane.showConfirmDialog(null,
+            message.toString(),
+            "🔔 Revente de billets",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.QUESTION_MESSAGE);
+        
+        if (response == javax.swing.JOptionPane.YES_OPTION) {
+            for (Journey ticket : tickets) {
+                startTicketAuction(ticket);
+            }
+            window.println("🔔 " + tickets.size() + " billet(s) mis en enchère");
+        }
+    }
+
+    /**
+     * Définit le budget pour les enchères
+     * @param budget Le nouveau budget
+     */
+    public void setAuctionBudget(double budget) {
+        this.auctionBudget = budget;
+        window.printDebug("Budget d'enchère mis à jour: " + String.format("%.2f€", budget));
+    }
+
+    /**
+     * Récupère le budget pour les enchères
+     * @return Le budget actuel
+     */
+    public double getAuctionBudget() {
+        return auctionBudget;
     }
 
 }

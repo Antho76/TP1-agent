@@ -105,8 +105,18 @@ public class ClientAlertHandler extends OneShotBehaviour {
                             if (!isValid) {
                                 System.out.println("⚠️ Le trajet n'est plus continu mais les segments sont conservés");
                                 System.out.println("   Segments restants :");
+                                List<Journey> remainingSegments = new java.util.ArrayList<>();
                                 for (Journey j : cancelledJourney.getJourneys()) {
                                     System.out.println("   - " + j.getStart() + " → " + j.getStop() + " (" + j.getMeans() + ")");
+                                    remainingSegments.add(j);
+                                }
+                                
+                                // NOUVEAU: Proposer la revente des segments devenus inutiles
+                                // Les segments après le point de rupture sont potentiellement inutiles
+                                List<Journey> unusableSegments = findUnusableSegments(cancelledJourney, impactedStart, impactedStop);
+                                if (!unusableSegments.isEmpty()) {
+                                    System.out.println("🎫 Segments potentiellement à revendre: " + unusableSegments.size());
+                                    proposeTicketResale(travellerAgent, unusableSegments, reason);
                                 }
                             }
                             
@@ -371,6 +381,162 @@ public class ClientAlertHandler extends OneShotBehaviour {
         
         travellerAgent.addBehaviour(contractNetBehaviour);
         System.out.println("✅ Recherche alternative lancée avec les préférences d'origine");
+    }
+
+    /**
+     * Trouve les segments devenus inutilisables suite à une annulation
+     * TOUS les segments du trajet (avant ET après l'incident) deviennent inutiles
+     * car le trajet complet ne peut plus être effectué
+     * 
+     * @param journey Le trajet composé
+     * @param impactStart Point de départ du segment annulé
+     * @param impactStop Point d'arrivée du segment annulé
+     * @return Liste des segments inutilisables (tous sauf le segment annulé lui-même)
+     */
+    private List<Journey> findUnusableSegments(ComposedJourney journey, String impactStart, String impactStop) {
+        List<Journey> unusable = new java.util.ArrayList<>();
+        List<Journey> segments = journey.getJourneys();
+        
+        // Quand un trajet A→B→C→D est interrompu entre B et C:
+        // - Le segment B→C est directement impacté (annulé par l'agence)
+        // - Les segments A→B (avant) ET C→D (après) deviennent inutiles car le trajet complet échoue
+        // 
+        // On propose donc TOUS les segments sauf celui directement annulé à la revente
+        
+        for (Journey segment : segments) {
+            // Vérifier si c'est le segment directement impacté (celui qui est annulé)
+            boolean isDirectlyImpacted = (segment.getStart().equals(impactStart) && segment.getStop().equals(impactStop)) ||
+                                         (segment.getStart().equals(impactStop) && segment.getStop().equals(impactStart));
+            
+            if (!isDirectlyImpacted) {
+                // Ce segment n'est pas celui annulé, mais il devient inutile car le trajet est rompu
+                unusable.add(segment);
+                System.out.println("🔴 Segment devenu inutile: " + segment.getStart() + " → " + segment.getStop());
+            } else {
+                System.out.println("❌ Segment directement annulé (non revendable): " + segment.getStart() + " → " + segment.getStop());
+            }
+        }
+        
+        return unusable;
+    }
+
+    /**
+     * Propose au client de revendre les billets devenus inutiles
+     * 
+     * @param agent L'agent voyageur
+     * @param unusableTickets Liste des billets à potentiellement revendre
+     * @param reason Raison de la proposition
+     */
+    private void proposeTicketResale(TravellerAgent agent, List<Journey> unusableTickets, String reason) {
+        if (unusableTickets == null || unusableTickets.isEmpty()) {
+            return;
+        }
+        
+        SwingUtilities.invokeLater(() -> {
+            StringBuilder message = new StringBuilder();
+            message.append("🎫 BILLETS DEVENUS INUTILES\n\n");
+            message.append("Suite à l'annulation (").append(reason).append("),\n");
+            message.append("les billets suivants ne peuvent plus être utilisés:\n\n");
+            
+            double totalValue = 0;
+            for (int i = 0; i < unusableTickets.size(); i++) {
+                Journey ticket = unusableTickets.get(i);
+                totalValue += ticket.getCost();
+                message.append(String.format("%d. 🎫 %s → %s (%s)\n",
+                    i + 1, ticket.getStart(), ticket.getStop(), ticket.getMeans()));
+                message.append(String.format("   🕒 %s | 💰 %.2f€\n",
+                    formatTime(ticket.getDepartureDate()), ticket.getCost()));
+            }
+            
+            message.append("\n═".repeat(30));
+            message.append(String.format("\n💰 Valeur totale: %.2f€\n", totalValue));
+            message.append("═".repeat(30));
+            message.append("\n\n🔔 Voulez-vous mettre ces billets en ENCHÈRE?\n");
+            message.append("D'autres voyageurs et services spécialisés\n");
+            message.append("pourront faire des offres pour les racheter.");
+            
+            int response = JOptionPane.showConfirmDialog(null,
+                message.toString(),
+                "🔔 Revente de billets aux enchères",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+            
+            if (response == JOptionPane.YES_OPTION) {
+                // Demander le prix minimum pour chaque billet ou un prix global
+                String priceOption = (String) JOptionPane.showInputDialog(null,
+                    "Choisissez le type de prix minimum:",
+                    "💰 Configuration des enchères",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    new String[]{"50% du prix original (recommandé)", "75% du prix original", "Personnalisé"},
+                    "50% du prix original (recommandé)");
+                
+                double priceMultiplier = 0.5; // Par défaut 50%
+                if (priceOption != null) {
+                    if (priceOption.contains("75%")) {
+                        priceMultiplier = 0.75;
+                    } else if (priceOption.contains("Personnalisé")) {
+                        String customPrice = JOptionPane.showInputDialog(null,
+                            "Entrez le pourcentage du prix original (ex: 60 pour 60%):",
+                            "Pourcentage personnalisé",
+                            JOptionPane.QUESTION_MESSAGE);
+                        if (customPrice != null) {
+                            try {
+                                priceMultiplier = Double.parseDouble(customPrice) / 100.0;
+                            } catch (NumberFormatException e) {
+                                priceMultiplier = 0.5;
+                            }
+                        }
+                    }
+                }
+                
+                // Lancer les enchères pour chaque billet SÉQUENTIELLEMENT
+                // Utiliser un délai entre chaque enchère pour éviter les conflits
+                final double finalMultiplier = priceMultiplier;
+                final int delayBetweenAuctions = 35000; // 35 secondes entre chaque enchère (temps pour que la précédente se termine)
+                
+                for (int i = 0; i < unusableTickets.size(); i++) {
+                    final Journey ticket = unusableTickets.get(i);
+                    final int index = i;
+                    final double minPrice = ticket.getCost() * finalMultiplier;
+                    
+                    // Utiliser un Timer pour lancer les enchères avec un délai
+                    java.util.Timer timer = new java.util.Timer();
+                    timer.schedule(new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            agent.getWindow().println("🔔 Lancement de l'enchère " + (index + 1) + "/" + unusableTickets.size() + 
+                                " pour: " + ticket.getStart() + " → " + ticket.getStop());
+                            agent.startTicketAuction(ticket, minPrice);
+                            timer.cancel();
+                        }
+                    }, (long) i * delayBetweenAuctions); // Délai progressif: 0s, 35s, 70s, etc.
+                }
+                
+                agent.getWindow().println("🔔 " + unusableTickets.size() + 
+                    " enchère(s) programmée(s) (prix min: " + 
+                    String.format("%.0f%%", priceMultiplier * 100) + " du prix original)");
+                
+                if (unusableTickets.size() > 1) {
+                    agent.getWindow().println("⏳ Les enchères seront lancées une par une (35s d'intervalle)");
+                }
+                
+                JOptionPane.showMessageDialog(null,
+                    "✅ " + unusableTickets.size() + " enchère(s) programmée(s)!\n\n" +
+                    (unusableTickets.size() > 1 ? 
+                        "Les enchères seront lancées une par une\n(35 secondes d'intervalle entre chaque).\n\n" : "") +
+                    "Les autres voyageurs et services spécialisés\n" +
+                    "vont être notifiés de vos offres.",
+                    "Enchères programmées",
+                    JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                // L'utilisateur refuse de revendre, les billets sont simplement annulés
+                agent.getWindow().println("❌ Revente annulée - les billets seront simplement annulés");
+                for (Journey ticket : unusableTickets) {
+                    ticket.cancelBooking();
+                }
+            }
+        });
     }
 
     /**

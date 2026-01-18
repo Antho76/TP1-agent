@@ -325,20 +325,39 @@ public class TravellerGui extends JFrame {
         scrollPane.setBorder(BorderFactory.createTitledBorder("🎫 Mes billets (stockage individuel)"));
         panel.add(scrollPane, BorderLayout.CENTER);
         
-        // Panel de boutons (seulement détails)
+        // Panel de boutons
         JPanel buttonPanel = new JPanel(new FlowLayout());
-        JButton detailsButton = new JButton("📄 Détails du billet");
-        detailsButton.setPreferredSize(new Dimension(160, 40));
-        detailsButton.setFont(new Font("SansSerif", Font.BOLD, 14));
-        detailsButton.addActionListener(e -> showTicketDetails());
         
+        // Bouton Détails
+        JButton detailsButton = new JButton("📄 Détails");
+        detailsButton.setPreferredSize(new Dimension(120, 40));
+        detailsButton.setFont(new Font("SansSerif", Font.BOLD, 12));
+        detailsButton.addActionListener(e -> showTicketDetails());
         buttonPanel.add(detailsButton);
+        
+        // Bouton Revendre (enchères)
+        JButton resellButton = new JButton("🔔 Revendre");
+        resellButton.setPreferredSize(new Dimension(120, 40));
+        resellButton.setFont(new Font("SansSerif", Font.BOLD, 12));
+        resellButton.setBackground(new Color(255, 193, 7)); // Jaune/orange
+        resellButton.setToolTipText("Mettre ce billet aux enchères");
+        resellButton.addActionListener(e -> resellSelectedTicket());
+        buttonPanel.add(resellButton);
+        
+        // Bouton Annuler
+        JButton cancelButton = new JButton("❌ Annuler");
+        cancelButton.setPreferredSize(new Dimension(120, 40));
+        cancelButton.setFont(new Font("SansSerif", Font.BOLD, 12));
+        cancelButton.setBackground(new Color(220, 53, 69)); // Rouge
+        cancelButton.setForeground(Color.WHITE);
+        cancelButton.setToolTipText("Annuler et rembourser ce billet");
+        cancelButton.addActionListener(e -> cancelSelectedTicket());
+        buttonPanel.add(cancelButton);
         
         // Message informatif
         JLabel infoLabel = new JLabel("<html><div style='text-align: center; color: #666;'>" +
-            "🎫 Chaque trajet est organisé avec un nom (ex: Trajet 1).<br>" +
-            "Les billets individuels sont regroupés sous leur trajet.<br>" +
-            "Sélectionnez un billet (pas l'en-tête) pour voir ses détails." +
+            "🎫 Sélectionnez un billet pour voir ses détails, le revendre aux enchères ou l'annuler.<br>" +
+            "🔔 La revente permet aux autres voyageurs de racheter votre billet." +
             "</div></html>");
         infoLabel.setHorizontalAlignment(SwingConstants.CENTER);
         
@@ -473,6 +492,180 @@ public class TravellerGui extends JFrame {
         }
         
         return -1; // Pas trouvé
+    }
+
+    /**
+     * Revend le billet sélectionné aux enchères
+     */
+    private void resellSelectedTicket() {
+        int selectedIndex = tripsList.getSelectedIndex();
+        if (selectedIndex == -1) {
+            JOptionPane.showMessageDialog(this, 
+                "Veuillez sélectionner un billet à revendre.", 
+                "Aucune sélection", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        String selectedItem = tripsListModel.getElementAt(selectedIndex);
+        
+        // Vérifier si c'est un en-tête de trajet
+        if (selectedItem.startsWith("📍")) {
+            JOptionPane.showMessageDialog(this, 
+                "Sélectionnez un billet individuel, pas un en-tête de trajet.", 
+                "Sélection invalide", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Trouver le billet
+        int ticketIndex = findTicketIndex(selectedIndex);
+        if (ticketIndex == -1 || ticketIndex >= individualTickets.size()) {
+            JOptionPane.showMessageDialog(this, 
+                "Erreur: Billet non trouvé.", 
+                "Erreur", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        data.Journey ticket = individualTickets.get(ticketIndex);
+        
+        // Proposer la revente à l'utilisateur via l'agent
+        boolean auctionStarted = myAgent.proposeAuction(ticket, "Revente volontaire");
+        
+        if (auctionStarted) {
+            // Retirer le billet de la liste locale (il sera transféré si vendu)
+            individualTickets.remove(ticketIndex);
+            tripsListModel.remove(selectedIndex);
+            
+            // Mettre à jour l'en-tête du trajet si nécessaire
+            updateTripHeaders();
+            
+            println("🔔 Billet mis en enchère: " + ticket.getStart() + " → " + ticket.getStop());
+        }
+    }
+
+    /**
+     * Annule le billet sélectionné (remboursement)
+     */
+    private void cancelSelectedTicket() {
+        int selectedIndex = tripsList.getSelectedIndex();
+        if (selectedIndex == -1) {
+            JOptionPane.showMessageDialog(this, 
+                "Veuillez sélectionner un billet à annuler.", 
+                "Aucune sélection", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        String selectedItem = tripsListModel.getElementAt(selectedIndex);
+        
+        // Vérifier si c'est un en-tête de trajet
+        if (selectedItem.startsWith("📍")) {
+            JOptionPane.showMessageDialog(this, 
+                "Sélectionnez un billet individuel, pas un en-tête de trajet.", 
+                "Sélection invalide", 
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        // Trouver le billet
+        int ticketIndex = findTicketIndex(selectedIndex);
+        if (ticketIndex == -1 || ticketIndex >= individualTickets.size()) {
+            JOptionPane.showMessageDialog(this, 
+                "Erreur: Billet non trouvé.", 
+                "Erreur", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        data.Journey ticket = individualTickets.get(ticketIndex);
+        
+        // Demander confirmation avec option de revente
+        Object[] options = {"Annuler simplement", "Mettre en enchère", "Ne rien faire"};
+        int choice = JOptionPane.showOptionDialog(this,
+            "Que souhaitez-vous faire avec ce billet?\n\n" +
+            "🎫 " + ticket.getStart() + " → " + ticket.getStop() + "\n" +
+            "💰 Valeur: " + String.format("%.2f€", ticket.getCost()) + "\n\n" +
+            "• Annuler: remboursement standard\n" +
+            "• Enchère: revendre à d'autres voyageurs",
+            "❌ Annulation de billet",
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0]);
+        
+        if (choice == 0) {
+            // Annulation simple
+            int confirm = JOptionPane.showConfirmDialog(this,
+                "Confirmer l'annulation du billet?\n\n" +
+                "🎫 " + ticket.getStart() + " → " + ticket.getStop() + "\n" +
+                "💰 Remboursement estimé: " + String.format("%.2f€", ticket.getCost() * 0.8) + " (80%)",
+                "Confirmation d'annulation",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                // Annuler le billet et restaurer le stock
+                ticket.cancelBooking();
+                
+                // Retirer de la liste
+                individualTickets.remove(ticketIndex);
+                tripsListModel.remove(selectedIndex);
+                
+                // Mettre à jour l'en-tête du trajet
+                updateTripHeaders();
+                
+                println("❌ Billet annulé: " + ticket.getStart() + " → " + ticket.getStop());
+                println("💰 Remboursement: " + String.format("%.2f€", ticket.getCost() * 0.8));
+                
+                JOptionPane.showMessageDialog(this,
+                    "✅ Billet annulé avec succès!\n\n" +
+                    "💰 Remboursement: " + String.format("%.2f€", ticket.getCost() * 0.8),
+                    "Annulation confirmée",
+                    JOptionPane.INFORMATION_MESSAGE);
+            }
+        } else if (choice == 1) {
+            // Mettre en enchère
+            resellSelectedTicket();
+        }
+        // choice == 2 : ne rien faire
+    }
+
+    /**
+     * Met à jour les en-têtes de trajets après suppression d'un billet
+     */
+    private void updateTripHeaders() {
+        // Parcourir la liste et supprimer les en-têtes sans billets
+        for (int i = tripsListModel.getSize() - 1; i >= 0; i--) {
+            String item = tripsListModel.getElementAt(i);
+            if (item.startsWith("📍")) {
+                // Vérifier s'il y a des billets après cet en-tête
+                boolean hasTickets = false;
+                for (int j = i + 1; j < tripsListModel.getSize(); j++) {
+                    String nextItem = tripsListModel.getElementAt(j);
+                    if (nextItem.startsWith("📍")) {
+                        break; // Prochain en-tête trouvé
+                    }
+                    if (!nextItem.startsWith("📍")) {
+                        hasTickets = true;
+                        break;
+                    }
+                }
+                
+                if (!hasTickets) {
+                    tripsListModel.remove(i);
+                    if (i < bookedTrips.size()) {
+                        bookedTrips.remove(i);
+                    }
+                }
+            }
+        }
+        
+        // Forcer le rafraîchissement
+        tripsList.revalidate();
+        tripsList.repaint();
     }
 
     /**
@@ -698,6 +891,206 @@ public class TravellerGui extends JFrame {
             
             System.out.println("🔄 Synchronisation forcée terminée - " + agentJourneys.size() + " trajets synchronisés");
         });
+    }
+
+    /**
+     * Ajoute un billet acheté aux enchères à la liste des trajets du client
+     * Cette méthode est appelée après une enchère réussie
+     * @param ticket Le billet acheté
+     * @param pricePaid Le prix payé pour le billet
+     */
+    public void addAuctionPurchasedTicket(data.Journey ticket, double pricePaid) {
+        SwingUtilities.invokeLater(() -> {
+            // Créer un ComposedJourney à partir du billet unique
+            data.ComposedJourney composedJourney = new data.ComposedJourney();
+            composedJourney.add(ticket);
+            
+            // Ajouter à la liste de l'agent (source de vérité)
+            myAgent.addBookedJourney(composedJourney);
+            
+            // Créer l'affichage du billet acheté aux enchères avec marquage spécial
+            String tripSummary = createAuctionTicketDisplay(ticket, pricePaid);
+            
+            // Ajouter à l'affichage
+            bookedTrips.add(tripSummary);
+            tripsListModel.addElement(tripSummary);
+            
+            // Maintenir la compatibilité avec bookedJourneys local
+            bookedJourneys.add(composedJourney);
+            individualTickets.add(ticket);
+            
+            // Notification dans la console
+            println("🎉 Nouveau billet ajouté à vos réservations (acheté aux enchères):");
+            println("   📍 " + ticket.getStart() + " → " + ticket.getStop());
+            println("   💰 Prix payé: " + String.format("%.2f€", pricePaid));
+            
+            // Forcer le rafraîchissement visuel
+            tripsList.revalidate();
+            tripsList.repaint();
+            
+            // Basculer vers l'onglet "Mes billets" pour montrer le nouvel achat
+            tabbedPane.setSelectedIndex(1);
+            
+            System.out.println("✅ Billet aux enchères ajouté: " + ticket.getStart() + " → " + ticket.getStop() + 
+                             " pour " + String.format("%.2f€", pricePaid));
+        });
+    }
+
+    /**
+     * Supprime un billet vendu aux enchères de la liste des trajets du vendeur
+     * Utilise l'ID unique du billet pour garantir la suppression du bon billet
+     * @param ticket Le billet vendu
+     */
+    public void removeSoldAuctionTicket(data.Journey ticket) {
+        SwingUtilities.invokeLater(() -> {
+            if (ticket == null) {
+                return;
+            }
+            
+            long ticketId = ticket.getTicketId();
+            String ticketStart = ticket.getStart();
+            String ticketStop = ticket.getStop();
+            String ticketMeans = ticket.getMeans();
+            int ticketDeparture = ticket.getDepartureDate();
+            
+            System.out.println("🔍 Recherche du billet vendu à supprimer (ID: " + ticketId + "):");
+            System.out.println("   Trajet: " + ticketStart + " → " + ticketStop);
+            
+            // 1. D'abord, trouver le billet dans individualTickets par son ID unique
+            int indexToRemove = -1;
+            for (int i = 0; i < individualTickets.size(); i++) {
+                data.Journey indTicket = individualTickets.get(i);
+                if (indTicket.getTicketId() == ticketId) {
+                    indexToRemove = i;
+                    System.out.println("✅ Billet trouvé dans individualTickets à l'index " + i + " (ID: " + ticketId + ")");
+                    break;
+                }
+            }
+            
+            // 2. Trouver l'index correspondant dans l'affichage
+            // On compte les billets individuels (pas les en-têtes de trajet)
+            if (indexToRemove >= 0) {
+                individualTickets.remove(indexToRemove);
+                
+                // Parcourir la liste d'affichage pour trouver le bon billet
+                // en comptant les billets individuels rencontrés
+                int ticketCount = 0;
+                for (int i = 0; i < tripsListModel.getSize(); i++) {
+                    String displayText = tripsListModel.getElementAt(i);
+                    
+                    // Vérifier si c'est un billet (pas un en-tête de trajet)
+                    if (displayText.contains("🎫") || displayText.contains("├─") || displayText.contains("└─") ||
+                        (displayText.contains("→") && !displayText.startsWith("📍") && !displayText.startsWith("⚠️"))) {
+                        
+                        // Vérifier si ce billet correspond au billet vendu
+                        String formattedDepTime = String.format("%02d:%02d", ticketDeparture / 100, ticketDeparture % 100);
+                        boolean matchesRoute = displayText.contains(ticketStart + "→" + ticketStop) || 
+                                               displayText.contains(ticketStart + " → " + ticketStop);
+                        boolean matchesTime = displayText.contains(formattedDepTime);
+                        boolean matchesMeans = displayText.toLowerCase().contains(ticketMeans.toLowerCase());
+                        
+                        if (matchesRoute && matchesTime && matchesMeans) {
+                            // Vérifier si c'est le bon index dans la liste des billets
+                            if (ticketCount == indexToRemove) {
+                                tripsListModel.remove(i);
+                                if (i < bookedTrips.size()) {
+                                    bookedTrips.remove(i);
+                                }
+                                System.out.println("✅ Billet supprimé de l'affichage à l'index " + i);
+                                break;
+                            }
+                        }
+                        ticketCount++;
+                    }
+                }
+            } else {
+                // Fallback: chercher par correspondance exacte des attributs
+                System.out.println("⚠️ ID non trouvé, recherche par attributs...");
+                for (int i = individualTickets.size() - 1; i >= 0; i--) {
+                    data.Journey indTicket = individualTickets.get(i);
+                    if (indTicket.getStart().equals(ticketStart) && 
+                        indTicket.getStop().equals(ticketStop) &&
+                        indTicket.getMeans().equals(ticketMeans) &&
+                        indTicket.getDepartureDate() == ticketDeparture) {
+                        
+                        individualTickets.remove(i);
+                        System.out.println("✅ Billet supprimé de individualTickets par attributs");
+                        break;
+                    }
+                }
+                
+                // Supprimer de l'affichage
+                String formattedDepTime = String.format("%02d:%02d", ticketDeparture / 100, ticketDeparture % 100);
+                for (int i = tripsListModel.getSize() - 1; i >= 0; i--) {
+                    String displayText = tripsListModel.getElementAt(i);
+                    boolean matchesRoute = displayText.contains(ticketStart + "→" + ticketStop) || 
+                                           displayText.contains(ticketStart + " → " + ticketStop);
+                    boolean matchesTime = displayText.contains(formattedDepTime);
+                    boolean matchesMeans = displayText.toLowerCase().contains(ticketMeans.toLowerCase());
+                    
+                    if (matchesRoute && matchesTime && matchesMeans) {
+                        tripsListModel.remove(i);
+                        if (i < bookedTrips.size()) {
+                            bookedTrips.remove(i);
+                        }
+                        System.out.println("✅ Billet supprimé de l'affichage par attributs");
+                        break;
+                    }
+                }
+            }
+            
+            // 3. Supprimer des bookedJourneys de l'agent (source de vérité)
+            List<data.ComposedJourney> agentJourneys = myAgent.getBookedJourneys();
+            for (int i = agentJourneys.size() - 1; i >= 0; i--) {
+                data.ComposedJourney journey = agentJourneys.get(i);
+                for (data.Journey segment : journey.getJourneys()) {
+                    if (segment.getTicketId() == ticketId) {
+                        if (journey.getJourneys().size() == 1) {
+                            myAgent.removeBookedJourney(journey);
+                            System.out.println("✅ Trajet complet supprimé des réservations de l'agent");
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Mettre à jour les en-têtes de trajets (supprimer ceux qui sont vides)
+            updateTripHeaders();
+            
+            // Forcer le rafraîchissement visuel
+            tripsList.revalidate();
+            tripsList.repaint();
+            
+            // Message dans la console
+            String formattedTime = String.format("%02d:%02d", ticketDeparture / 100, ticketDeparture % 100);
+            println("🏷️ Billet vendu aux enchères retiré de vos réservations:");
+            println("   📍 " + ticketStart + " → " + ticketStop + " (" + formattedTime + ") [ID:" + ticketId + "]");
+        });
+    }
+    
+    /**
+     * Crée l'affichage spécial pour un billet acheté aux enchères
+     */
+    private String createAuctionTicketDisplay(data.Journey ticket, double pricePaid) {
+        if (ticket == null) {
+            return "🏷️ Billet aux enchères invalide";
+        }
+        
+        // Formatage de l'heure de départ
+        int depHours = ticket.getDepartureDate() / 100;
+        int depMinutes = ticket.getDepartureDate() % 100;
+        String formattedDepTime = String.format("%02d:%02d", depHours, depMinutes);
+        
+        // Formatage de l'heure d'arrivée
+        int arrHours = ticket.getArrivalDate() / 100;
+        int arrMinutes = ticket.getArrivalDate() % 100;
+        String formattedArrTime = String.format("%02d:%02d", arrHours, arrMinutes);
+        
+        // Format spécial pour les billets achetés aux enchères: "🏷️ [ENCHÈRE] 09:00-09:30 A→B Bus 30min 3,50€"
+        return String.format("🏷️ [ENCHÈRE] %s-%s %s→%s %s %dmin %.2f€",
+            formattedDepTime, formattedArrTime,
+            ticket.getStart(), ticket.getStop(), 
+            ticket.getMeans(), ticket.getDuration(), pricePaid);
     }
 
     /**

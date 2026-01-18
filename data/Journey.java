@@ -2,6 +2,7 @@ package data;
 
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * class that represents a journey<br>
@@ -12,6 +13,16 @@ import java.util.Objects;
  */
 @SuppressWarnings("serial")
 public class Journey implements Cloneable, Serializable, Comparable<Journey> {
+    /**
+     * Compteur statique pour générer des IDs uniques
+     */
+    private static final AtomicLong ID_COUNTER = new AtomicLong(0);
+    
+    /**
+     * ID unique du billet
+     */
+    private final long ticketId;
+    
     /**
      * some fields to improve the memory management
      */
@@ -86,6 +97,7 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
 
     public Journey(final String _start, final String _stop, final String _means, final int _departureDate,
                    final int _duration) {
+        this.ticketId = ID_COUNTER.incrementAndGet(); // Générer un ID unique
         start = _start;
         stop = _stop;
         means = _means;
@@ -119,12 +131,28 @@ public class Journey implements Cloneable, Serializable, Comparable<Journey> {
     }
 
     public Journey(final Journey j){
-        this(j.start, j.stop, j.means, j.departureDate, j.baseDuration, j.baseCost, j.co2, j.confort, j.proposedBy);
-        this.places = j.places;
-        this.baseCost = j.baseCost;
+        // Pour la copie, on garde le même ID que l'original
+        this.ticketId = j.ticketId;
+        this.start = j.start;
+        this.stop = j.stop;
+        this.means = j.means;
+        this.departureDate = j.departureDate;
         this.baseDuration = j.baseDuration;
-        this.cost = j.cost;
         this.duration = j.duration;
+        this.arrivalDate = j.arrivalDate;
+        this.baseCost = j.baseCost;
+        this.cost = j.cost;
+        this.co2 = j.co2;
+        this.confort = j.confort;
+        this.proposedBy = j.proposedBy;
+        this.places = j.places;
+    }
+    
+    /**
+     * Retourne l'ID unique du billet
+     */
+    public long getTicketId() {
+        return ticketId;
     }
 
     /**
