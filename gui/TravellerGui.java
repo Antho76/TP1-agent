@@ -759,11 +759,11 @@ public class TravellerGui extends JFrame {
                     System.out.println("  Billet " + (i+1) + ": " + ticket.getStart() + " → " + ticket.getStop());
                 }
                 
+                // Generate personalized message with Ollama
+                String confirmationMessage = generateConfirmationMessageWithOllama(journey);
+                
                 JOptionPane.showMessageDialog(this, 
-                    "✅ Trajet réservé avec succès!\n\n" +
-                    "Votre trajet a été décomposé en " + journey.getJourneys().size() + " billets individuels.\n" +
-                    "Les places ont été réservées auprès des agences.\n" +
-                    "Consultez l'onglet 'Mes billets' pour voir tous vos billets.", 
+                    confirmationMessage, 
                     "Réservation confirmée", 
                     JOptionPane.INFORMATION_MESSAGE);
                 
@@ -1723,6 +1723,68 @@ public class TravellerGui extends JFrame {
             }
         }
         return false;
+    }
+
+    /**
+     * Generate a personalized confirmation message using Ollama
+     */
+    private String generateConfirmationMessageWithOllama(data.ComposedJourney journey) {
+        try {
+            // Build journey summary for Ollama
+            data.Journey firstSegment = journey.getJourneys().get(0);
+            data.Journey lastSegment = journey.getJourneys().get(journey.getJourneys().size() - 1);
+            
+            double totalCost = journey.getJourneys().stream().mapToDouble(data.Journey::getCost).sum();
+            double totalDuration = journey.getJourneys().stream().mapToDouble(data.Journey::getDuration).sum();
+            double totalCo2 = journey.getJourneys().stream().mapToDouble(data.Journey::getCo2).sum();
+            
+            String journeyInfo = String.format(
+                "User booked a trip from %s to %s with %d segments. Total cost: %.2f€, Duration: %.0f minutes, CO2: %.0f. " +
+                "Journey details: %s",
+                firstSegment.getStart(), lastSegment.getStop(), 
+                journey.getJourneys().size(),
+                totalCost, totalDuration, totalCo2,
+                journey.getJourneys().stream()
+                    .map(j -> j.getMeans() + "(" + j.getStart() + "→" + j.getStop() + ")")
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("N/A")
+            );
+            
+            String prompt = "Generate a SHORT and FRIENDLY French confirmation message (2-3 sentences max) for this booking. " +
+                    "Be enthusiastic but concise. Include emojis. End with one practical tip about the trip.\n\n" +
+                    "Booking info: " + journeyInfo;
+
+            JSONObject jsonRequest = new JSONObject();
+            jsonRequest.put("model", modelName);
+            jsonRequest.put("prompt", prompt);
+            jsonRequest.put("stream", false);
+
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/generate"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonRequest.toString()))
+                    .timeout(Duration.ofSeconds(30))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                JSONObject jsonResponse = new JSONObject(response.body());
+                String ollamaResponse = jsonResponse.getString("response").trim();
+                
+                // Format the response nicely
+                return "✅ Réservation confirmée!\n\n" + ollamaResponse + 
+                       "\n\nVos " + journey.getJourneys().size() + " billets sont prêts dans l'onglet 'Mes billets'.";
+            }
+        } catch (Exception e) {
+            System.err.println("Ollama confirmation generation failed: " + e.getMessage());
+        }
+        
+        // Fallback to default message if Ollama fails
+        return "✅ Trajet réservé avec succès!\n\n" +
+               "Votre trajet a été décomposé en " + journey.getJourneys().size() + " billets individuels.\n" +
+               "Les places ont été réservées auprès des agences.\n" +
+               "Consultez l'onglet 'Mes billets' pour voir tous vos billets.";
     }
 
     public static void main(String[] args) {
